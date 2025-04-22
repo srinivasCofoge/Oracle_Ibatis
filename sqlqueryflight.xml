@@ -1,0 +1,2806 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
+
+
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- The SQL in these maps files has purposely been typed with more verbosity than is actually required.
+ For example, many of the selects could have just used SELECT * FROM... instead of listing all of the columns.
+ This is to demonstrate that even complex SQL can be handled and coded and formatted the way SQL was meant
+ to be (i.e. not a bunch of concatenated strings in a Java class). -->
+<sqlMap namespace="Flight">
+	
+	
+	<parameterMap id="FLT_proc_callmap" class="map" >		
+		<parameter property="RESULT" jdbcType="VARCHAR"	javaType="java.lang.String"	mode="OUT"/>
+		<parameter property="TRXN_NO"  jdbcType="VARCHAR"	javaType="java.lang.String"	mode="IN"/>
+	</parameterMap>
+	<procedure id="FLT_proc_call" parameterMap="FLT_proc_callmap" >
+		{? = call PRO_CREATE_SEGMENT(?)}
+	</procedure>
+	
+	
+	<select id="FLT_selectDailyFlightDataExternal"  parameterClass="map"  resultClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+		SELECT 	CAST(OPR.TR_NO AS TEXT) txnNo, OPR.CARR_CODE flightCarr, OPR.FLT_NO flightNo, TO_CHAR(OPR.SCH_DATE,'DDMONYY') schDate,
+				TO_CHAR(OPR.EST_DATE,'DDMONYY') estDate,TO_CHAR(OPR.ACT_DATE,'DDMONYY') actDate,OPR.FLT_TYPE flightType, 
+				SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),1,2) schTimeHr,
+				SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),3,4) schTimeMin,
+				SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),1,2) estTimeHr,
+				SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),3,4) estTimeMin,
+				SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),1,2) actTimeHr,
+				SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),3,4) actTimeMin,
+				SUBSTR(TRIM(TO_CHAR(OPR.ORIG_TIME,'0000')),1,2) schTimeDepHr,
+				SUBSTR(TRIM(TO_CHAR(OPR.ORIG_TIME,'0000')),3,4) schTimeDepMin,
+				SUBSTR(TRIM(TO_CHAR(OPR.DEST_TIME,'0000')),1,2) schTimeArrHr,
+				SUBSTR(TRIM(TO_CHAR(OPR.DEST_TIME,'0000')),3,4) schTimeArrMin,
+				OPR.ORIG fromLoc, OPR.DEST toLoc, OPR.SVC_TYPE svcType,OPR.CGO_ACFT_TYPE cargoArcftType, 
+				OPR.ACFT_REG_NO arcftRegionNo,OPR.STATUS arrDepStatus,OPR.SCH_GATE gate,OPR.ACFT_PRK_BAY bay,
+				OPR.DELAY_CODE delayCode,OPR.GROUND_HANDLER handler,CAST(OPR.PRTY_IND AS TEXT) priorityInd,OPR.WTHR_COND weather,
+				OPR.RMK remarks,OPR.JV_CODE jvInd,OPR.WH_LEVEL warehouselvl,OPR.BRKBUP_OFF buildBreakDown,
+				COALESCE(EVENT.FFM_IND,'N') ffmInd, COALESCE(EVENT.DLS_IND,'N') dlsInd,
+				OPR.FLT_MODULE1 fltmodule1, OPR.FLT_MODULE2 fltmodule2, CHKOUT_AREA chkOutArea, ACFT_PRK_BAY arrDepStatus,
+				TO_IND toIndicator,
+			   (select cc.CODE_DESC from CUST_COMPANY cc where cc.code = OPR.rho_id)  rhoUserName,
+			    OPR.MANP_RMK manpowerRemark,
+			    OPR.VESSEL_ID vesselId, 
+    			OPR.VESSEL_NAME vesselName, 
+    			OPR.VOYAGE_NUM voyageNumber, 
+    			OPR.CALL_SIGN_VESSEL vesselflightCallSign, 
+    			OPR.SHIPPING_AGENT shippingAgent
+		FROM	FLT_OPR OPR LEFT OUTER JOIN FLT_OPR_EVENTS EVENT ON OPR.TR_NO = EVENT.TR_NO
+		WHERE	OPR.FLT_KEY  = #flightKey#
+		AND     OPR.SCH_DATE = to_date(#flightDate#,'DDMONYY')
+		AND     OPR.FLT_TYPE = #flightType#
+		]]>
+   	</select>
+	
+	<!-- CHANGED BY HAJI ON 11-05-06 -->
+
+	<insert id="saveSscheduleAirflt" parameterClass="cargo.cms.flight.bo.ScheduleBO">
+			INSERT INTO FLT_SCH_AIRLINE (
+				TR_NO, CARR_CODE, FLT_KEY,CR_USER_ID, CR_DATE, LM_USER_ID, LM_DATE
+				)
+			VALUES(
+				#trno#,#flightCarr#,#flightKey#,#userID#,CURRENT_TIMESTAMP(0),#userID#,CURRENT_TIMESTAMP(0)
+				)
+	</insert>
+	
+	<select id="fetchScheduleAirFlt"  parameterClass="cargo.cms.flight.bo.ScheduleBO" resultClass="cargo.cms.flight.bo.ScheduleBO">
+		SELECT TR_NO AS trno, CARR_CODE AS flightCarr,FLT_KEY AS flightKey FROM FLT_SCH_AIRLINE WHERE TR_NO = #trno# 
+		
+	</select>
+
+	<update id="updatescheduleAirflt" parameterClass="cargo.cms.flight.bo.ScheduleBO">
+		UPDATE	FLT_SCH_AIRLINE SET  FLT_KEY = #flightKey#  WHERE
+				TR_NO=#trno# AND CARR_CODE = #flightCarr#
+	</update>
+
+
+
+
+	
+	<insert id="saveAirlineflight" parameterClass="cargo.cms.flight.bo.FlightBO">
+			INSERT INTO FLT_OPR_AIRLINE(
+				TR_NO, CARR_CODE, FLT_KEY,CR_USER_ID, CR_DATE, LM_USER_ID, LM_DATE
+				)
+			VALUES(
+				#txnNo#,#flightCarr#,#flightNoKey#,#userId#,CURRENT_TIMESTAMP(0),#userId#,CURRENT_TIMESTAMP(0)
+				)	
+	</insert>
+
+	<select id="fetchAirlineFlight"  parameterClass="cargo.cms.flight.bo.FlightBO" resultClass="cargo.cms.flight.bo.FlightBO">
+		SELECT TR_NO AS txnNo, CARR_CODE AS flightCarr,FLT_KEY AS flightNoKey FROM FLT_OPR_AIRLINE WHERE TR_NO = #txnNo# 
+		
+	</select>
+
+	<update id="updateAirlineFlight" parameterClass="cargo.cms.flight.bo.FlightBO">
+		UPDATE	FLT_OPR_AIRLINE SET FLT_KEY = #flightNoKey#  WHERE
+				TR_NO=#txnNo# AND CARR_CODE = #flightCarr#
+	</update>
+
+	<insert id="FLT_insertInFLTOPR" parameterClass="cargo.cms.flight.bo.FlightBO">
+		<![CDATA[
+			INSERT INTO FLT_OPR(
+				TR_NO, CARR_CODE, FLT_NO, FLT_KEY, ORG_FLT_DATE, SCH_DATE, FLT_TYPE, EST_DATE, 
+				EST_TIME, ACT_DATE, ACT_TIME, SVC_TYPE, ACFT_TYPE, ACFT_REG_NO, STATUS, SCH_GATE,
+				ACFT_PRK_BAY, DELAY_CODE,GROUND_HANDLER, PRTY_IND, WTHR_COND, RMK, JV_CODE, 
+				WH_LEVEL, BRKBUP_OFF, TR_STATUS,CR_USER_ID, CR_DATE, LM_USER_ID, LM_DATE,CGO_ACFT_TYPE,
+				FLT_MODULE1,FLT_MODULE2,CHKOUT_AREA,TO_IND,RHO_ID,MANP_RMK, 
+				STOP_AUTO_EST_YN, EST_TIME_SOURCE,VESSEL_ID,VESSEL_NAME,VOYAGE_NUM,CALL_SIGN_VESSEL,SHIPPING_AGENT
+				)
+			VALUES(
+				#txnNo#,UPPER(#flightCarr#),UPPER(#flightNo#),UPPER(#flightKey#),TO_DATE(#orgFltDate#,'DDMONYY'),
+				TO_DATE(#schDate#,'DDMONYY'),#flightType#,TO_DATE(#estDate#,'DDMONYY'),#hrAndMinEst#,
+				TO_DATE(#actDate#,'DDMONYY'),#hrAndMinAct#,#svcType#,#airCraftType#,#arcftRegionNo#,
+				#arrDepStatus#,#gate#,#bay#,#delayCode#,#handler#,#priorityInd#,#weather#,#remarks#,
+				#jvInd#,#warehouselvl#,#buildBreakDown#,'N',#userId#,CURRENT_TIMESTAMP(0),#userId#,CURRENT_TIMESTAMP(0),
+				#cargoArcftType#,#fltModule1#,#fltModule2#,#chkOutArea#,#toIndicator#,#rhoUser#,#manpowerRemark#,
+				COALESCE(#stopAutoEstYN#, 'N'), CASE #updateEstSource#  WHEN 'Y' THEN  'USER' ELSE NULL END,#vesselId#,
+				#vesselName#,#voyageNumber#,#vesselflightCallSign#,#shippingAgent#
+	  			)	
+		]]>
+	</insert>
+	<update id="hht_update_weather" parameterClass="cargo.cms.flight.bo.FlightBO">
+		UPDATE	FLT_OPR SET WTHR_COND = #weather# WHERE	
+				CARR_CODE=#flightCarr# AND FLT_NO=#flightNo# 
+				AND SCH_DATE= TO_DATE( #schDate#, 'DDMONYY') 
+				AND FLT_TYPE= #flightType#
+	</update>
+	
+	<select id="hht_flt_validate" parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.Integer">
+			SELECT COALESCE(COUNT(*),0) FROM FLT_OPR WHERE 
+				CARR_CODE=#flightCarr# AND FLT_NO=#flightNo# 
+				AND SCH_DATE= TO_DATE( #schDate#, 'DDMONYY') 
+				AND FLT_TYPE= #flightType#
+   	</select>
+
+	<update id="FLT_updateFLTOPR" parameterClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+			UPDATE  FLT_OPR SET ORIG = UPPER(#fromLoc#), ORIG_DATE = TO_DATE(#orgFltDate#,'DDMONYY'), 
+					ORIG_TIME = #fromLocHrMin:NUMERIC#, DEST =  UPPER(#toLoc#), 
+					SCH_TIME = CASE FLT_TYPE WHEN 'A' THEN #toLocHrMin:NUMERIC# WHEN 'D' THEN  #fromLocHrMin:NUMERIC#  WHEN 'B' THEN  #fromLocHrMin:NUMERIC# END,
+					DEST_DATE = TO_DATE(#schDateTo#,'DDMONYY'), DEST_TIME = #toLocHrMin:NUMERIC#,
+					CGO_ACFT_TYPE = #cargoArcftType#, TR_TYPE=#trtype#, LM_USER_ID=#userId#, LM_DATE=CURRENT_TIMESTAMP(0), RHO_ID = #rhoUser#,  MANP_RMK = #manpowerRemark#
+			WHERE	TR_NO = #txnNo#
+		]]>
+	</update>
+
+	
+	<insert id="FLT_insertInFLTOPRENENTS" parameterClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+		INSERT INTO FLT_OPR_EVENTS(
+				TR_NO, CARR_CODE, FLT_NO, FLT_KEY, ORG_FLT_DATE, SCH_DATE,FFM_IND, DLS_IND,TR_TYPE
+				)
+			VALUES(
+				#txnNo#,UPPER(#flightCarr#),UPPER(#flightNo#),UPPER(#flightKey#),TO_DATE(#schDate#,'DDMONYY'),
+				TO_DATE(#schDate#,'DDMONYY'),#ffmInd#,#dlsInd#,#trtype#
+				)
+	]]>
+	</insert>
+	
+	<!-- modified by haji on 08-08-06 for FLT_TYPE -->	
+	<insert id="FLT_insertInFLTOPRLEG" parameterClass="cargo.cms.flight.bo.FlightLegBO" >
+	<![CDATA[
+		INSERT INTO FLT_OPR_LEG(
+		TR_NO, DOC_LINE_NO, CARR_CODE, FLT_NO, FLT_KEY, ORG_FLT_DATE, SCH_DATE,
+		BRD_POINT, OFF_POINT, LEG_ORD,SCH_DEP_DATE, SCH_DEP_TIME,
+		SCH_ARR_DATE, SCH_ARR_TIME, ACFT_TYPE,JNT_CAR_1,JNT_FLT_1,
+		JNT_CAR_2,JNT_FLT_2,JNT_CAR_3,JNT_FLT_3,JNT_CAR_4,JNT_FLT_4,
+		JNT_CAR_5,JNT_FLT_5,JNT_CAR_6,JNT_FLT_6,
+		TR_STATUS, CR_USER_ID, CR_DATE, LM_USER_ID, LM_DATE,FLT_TYPE,PROHIBIT_SHC1,PROHIBIT_SHC2,PROHIBIT_SHC3,HSE_BU_IND,AUTO_ASSGN_ULD, TR_TYPE)
+	  	VALUES(
+		#txnNo#,#docLineNo#,UPPER(#flightCarr#),UPPER(#flightNo#),UPPER(#flightKey#),TO_DATE(#orgFltDate#,'DDMONYY'),
+		TO_DATE(#schDate#,'DDMONYY'), UPPER(#fromLoc#), UPPER(#toLoc#),#srlNo#,TO_DATE(#schDepDate#,'DDMONYY'),
+		#hrAndMinSchDep#,TO_DATE(#schArrDate#,'DDMONYY'),#hrAndMinSchArr#,#airCraftType#,
+		UPPER(#jointFltCar1#),UPPER(#jointFltNo1#), UPPER(#jointFltCar2#), UPPER(#jointFltNo2#), UPPER(#jointFltCar3#),
+		UPPER(#jointFltNo3#), UPPER(#jointFltCar4#), UPPER(#jointFltNo4#), UPPER(#jointFltCar5#), UPPER(#jointFltNo5#), 
+		UPPER(#jointFltCar6#), UPPER(#jointFltNo6#),'N',#userId#,CURRENT_TIMESTAMP(0),#userId#,CURRENT_TIMESTAMP(0),#flightType#,#prohibitedShc1#,#prohibitedShc2#,
+		#prohibitedShc3#,COALESCE(#houseBldConfig#,'N'),#autoAssignUld#, 'FLTCR')
+	]]>
+	</insert>
+	
+	<select id="FLT_checkBasePort"  parameterClass="map" resultClass="java.lang.String">
+	<![CDATA[
+		SELECT UPPER(COALESCE(BASE_PORT,'HKG')) FROM SYS_PARAM
+		]]>
+   	</select>
+
+
+	<select id="FLT_checkCarrierCode"  parameterClass="map" resultClass="java.lang.String">
+	<![CDATA[
+		SELECT CAST(COUNT(*) AS TEXT) FROM MAST_CARRIER WHERE UPPER(CODE) = UPPER(#CODE#) AND OWNED_CARR = 'Y'
+		]]>
+   	</select>
+	
+	<!-- Changed for Bug 7441 (Internal) -->
+	<select id="checkFltExistsARCH"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.String">
+		SELECT CAST(COUNT(*) AS TEXT) FROM ARCHIVE_LOG_MON WHERE FLT_KEY= (CONCAT(#flightCarr# , #flightNo#))  AND FLT_DATE = TO_DATE( #schDate#, 'DDMONYY') AND FLT_TYPE= #flightType#		
+   	</select>
+	
+
+	<select id="FLT_checkExistingSchedule"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT	CAST(COUNT(*) AS TEXT) 
+				FROM FLT_OPR 
+				WHERE UPPER(CARR_CODE) = UPPER(#flightCarr#) 
+				AND UPPER(FLT_NO) = UPPER(#flightNo#) 
+				AND TO_CHAR(SCH_DATE,'DDMONYY') = UPPER(#schDate#)
+				AND FLT_TYPE = #flightType#
+		]]>
+   	</select>
+	
+
+	<select id="FLT_checkAirport"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT CAST(COUNT(*) AS TEXT) FROM MAST_ARPT WHERE UPPER(CODE) = UPPER(#CODE#)
+		]]>
+   	</select>
+	<select id="FLT_checkSHC1"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT CAST(COUNT(*) AS TEXT) FROM MAST_SPL_HAND_CODE WHERE UPPER(CODE) = UPPER(#CODE#)
+		]]>
+   	</select>
+   	<select id="FLT_checkSHC2"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT CAST(COUNT(*) AS TEXT) FROM MAST_SPL_HAND_CODE WHERE UPPER(CODE) = UPPER(#CODE#)
+		]]>
+   	</select>
+   	<select id="FLT_checkSHC3"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT CAST(COUNT(*) AS TEXT) FROM MAST_SPL_HAND_CODE WHERE UPPER(CODE) = UPPER(#CODE#)
+		]]>
+   	</select>
+	
+	
+	<select id="FLT_checkAircraft"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT CAST(COUNT(*) AS TEXT) FROM MAST_ACFT_TYPE WHERE UPPER(CODE) = UPPER(#CODE#)
+		]]>
+   	</select>
+<!-- 	pushpa -->
+		<select id="POPUPULD"  parameterClass="cargo.cms.flight.bo.ExpMonitorBO"  resultClass="cargo.cms.flight.bo.ExpMonitorBO">
+	<![CDATA[
+		select uld_key as uld from exp_chkout_dtl where flt_key=#flightkey# and flt_date=TO_DATE( #schDate#, 'DDMONYY')  and chkout_date is null and chkout_user is null
+		]]>
+   	</select>
+
+
+	<select id="FLT_checkFlightDetail"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT CAST(COUNT(*) AS TEXT) FROM MAST_FLIGHT WHERE UPPER(CODE) = UPPER(#CODE#) AND UPPER(FLT_NO) = UPPER(#FLT_NO#)  
+		]]>
+   	</select>
+	
+    <delete id="sqlDeleteSupDtlsFltData"  parameterClass="cargo.cms.flight.bo.SupDtlsOfFlightBO">
+		DELETE FROM GT_AIRL_TONNAGE_REPT WHERE AIRLINE = #carr# AND SEQ_NO = #seqStarts#
+    </delete>
+
+     <parameterMap id="prcMapAirline" class="map" >
+		<parameter property="v_from_date" jdbcType="VARCHAR"	javaType="java.lang.String"	mode="IN"/>
+		<parameter property="v_to_date" jdbcType="VARCHAR"	javaType="java.lang.String"	mode="IN"/>
+		<parameter property="v_carr_code" jdbcType="VARCHAR"	javaType="java.lang.String"	mode="IN"/>
+		<parameter property="v_seq_no" jdbcType="VARCHAR"	javaType="java.lang.String"	mode="IN"/>
+		<parameter property="v_awb_prefix" jdbcType="VARCHAR"	javaType="java.lang.String"	mode="IN"/>
+	</parameterMap>
+	
+	<procedure id="updateFlightTotal" parameterMap="prcMapAirline" >
+		{call PRC_AIRL_DAILY_TONNAGE_REPT(?,?,?,?,?)}
+	</procedure>
+	
+	<!-- Updated for fix 12842, 12832. Sanket 04Nov14 -->
+	<!-- Updated for fix PR100856. Sanket 13Jan15 -->
+    <select id="fetchSupDtlsOfFlightList"  parameterClass="cargo.cms.flight.bo.SupDtlsOfFlightBO"  resultClass="cargo.cms.flight.bo.SupDtlsOfFlightBO">
+	select sourceDate sourceDate,ata ata,airline airline,aftFlowType aftFlowType,fltNo fltNo,fltDate fltDate,chargeType chargeType,flightType flightType,acftRegNum acftRegNum,
+    aircraftType aircraftType,sum(weight) weight from
+    (select DISTINCT to_char(fo.act_date,'DDMONYY') as sourceDate, 
+    To_Char(To_Date(CONCAT(To_Char(fo.Act_Date,'DDMONYY')  , Lpad(CAST(fo.Act_Time AS TEXT),4,'0')),'DDMONYYHH24MI'),'DDMONYY HH24:MI') AS ata,
+    fo.carr_code as airline, Case fo.flt_type When 'A' Then 'I' Else 'E' End as aftFlowType, fo.flt_key as fltNo, to_char(fo.sch_date,'DDMONYY') as fltDate,
+    '' as chargeType,
+    (SELECT CODE_DESC FROM MAST_CODE_DTL where CODE_TYPE = 'CGO_ACFT_TYPE' and CODE = fo.CGO_ACFT_TYPE) AS flightType,
+    ACFT_REG_NO acftRegNum,
+    ACFT_TYPE AS aircraftType,
+    (cast(TRIM(TO_CHAR(COALESCE((
+          COALESCE(BLK_LCL,0)+
+          COALESCE(BLK_EPH_KNW,0)+
+          COALESCE(BLK_EPH_UNK,0)+
+          COALESCE(BLK_EPA_KNW,0)+
+          COALESCE(BLK_EPA_UNK,0)+
+          COALESCE(BLK_EPD_KNW,0)+
+          COALESCE(BLK_EPD_UNK,0)+
+          COALESCE(BLK_TS,0)+
+          COALESCE(NBK_TS,0)+
+          COALESCE(BUP_LCL,0)+
+          COALESCE(BUP_EPH_KNW,0)+
+          COALESCE(BUP_EPH_UNK,0)+
+          COALESCE(BUP_EPA_KNW,0)+
+          COALESCE(bup_epa_unk,0)+
+          COALESCE(BUP_EPD_KNW,0)+
+          COALESCE(bup_epd_unk,0)+
+          COALESCE(bup_ts,0)),0),'999,999,999,999,999,999,999,999,999,999,999,999.99')) as decimal(38,2))) as weight 
+    from flt_opr fo
+    left join gt_airl_tonnage_rept gt on gt.flt_key = fo.flt_key and gt.sch_date = fo.sch_date and gt.flt_type = case fo.flt_type  when 'A' then  'I' else 'E' end
+    <isNotEmpty property="carr" prepend="AND">
+          gt.AIRLINE = #carr# 
+    </isNotEmpty>
+   <isNotEmpty property="loginCarrier" prepend="AND">
+          (gt.AIRLINE = #loginCarrier#
+          OR gt.AIRLINE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+          WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+     </isNotEmpty>
+    AND SEQ_NO = #seqStarts#
+    WHERE   to_date(to_char(fo.act_date,'DDMONYY'),'DDMONYY') BETWEEN to_date(#fromDate#,'DDMONYY') and to_date(#toDate#,'DDMONYY')
+    AND (fo.status is null or fo.status != 'X')            
+    <isNotEmpty property="carr" prepend="AND">
+          fo.carr_code = #carr# 
+    </isNotEmpty>
+    <isNotEmpty property="loginCarrier" prepend="AND">
+          (fo.CARR_CODE = #loginCarrier#
+          OR fo.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+          WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+     </isNotEmpty>)
+     group by sourceDate,ata,airline,aftFlowType,fltNo,fltDate,chargeType,flightType,aircraftType,acftRegNum 
+     order by sourceDate desc
+   	</select>
+	
+	<select id="FLT_checkULDDetails"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT CAST(0 AS TEXT) 
+         ]]>
+   	</select>
+
+	<select id="FLT_checkFlightDate"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT FUN_CHECK_FLT_DATE(#FUN_CHECK_FLT_DATE#) 
+        ]]>
+   	</select>
+<!-- pushpa -->
+	<select id="FLT_fetchDailyFlightList"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+		SELECT 
+		    opr.flt_module1 AS module,
+		    CAST(opr.tr_no AS text) AS txnNo,
+		    opr.carr_code AS flightCarr,
+		    opr.flt_no AS flightNo,
+		    TO_CHAR(opr.sch_date, 'DDMONYY') AS schDate,
+		    opr.flt_key AS flightKey,
+		    TO_CHAR(opr.est_date, 'DD') AS estDate,
+		    TO_CHAR(opr.act_date, 'DD') AS actDate,
+		    rtrim(SUBSTR(TRIM(TO_CHAR(opr.sch_time, '0000')), 1, 2) || ':' || SUBSTR(TRIM(TO_CHAR(opr.sch_time, '0000')), 3, 2), ':') AS hrAndMinSch,
+		    rtrim(SUBSTR(TRIM(TO_CHAR(opr.est_time, '0000')), 1, 2) || ':' || SUBSTR(TRIM(TO_CHAR(opr.est_time, '0000')), 3, 2), ':') AS hrAndMinEst,
+		    rtrim(SUBSTR(TRIM(TO_CHAR(opr.act_time, '0000')), 1, 2) || ':' || SUBSTR(TRIM(TO_CHAR(opr.act_time, '0000')), 3, 2), ':') AS hrAndMinAct,
+		    CASE opr.flt_type WHEN 'A' THEN orig WHEN 'D' THEN dest ELSE orig END AS fromLoc,
+		    (SELECT code_desc FROM mast_code_dtl WHERE code = opr.cgo_acft_type AND code_type = 'CGO_ACFT_TYPE') AS cargoArcftType,
+		    (SELECT code_desc FROM mast_acft_type WHERE code = opr.acft_type) AS airCraftType,
+		    opr.acft_reg_no AS arcftRegionNo,
+		    (SELECT code_desc FROM mast_code_dtl WHERE code = opr.status AND code_type = 'FLT_STATUS') AS arrDepStatus,
+		    opr.sch_gate AS gate,
+		    opr.acft_prk_bay AS bay,
+		    opr.wthr_cond AS weather,
+		    opr.rmk AS remarks,
+		    opr.flt_type AS flightType,
+		    CASE opr.flt_type WHEN 'A' THEN COALESCE((SELECT 'Y' FROM edi_ffm_msg t
+		                                WHERE flt_key = opr.flt_key AND flt_date = opr.sch_date AND ffm_status = 'P'
+		                                AND EXISTS (SELECT 1 FROM edi_ffm_uld WHERE tr_no = t.tr_no)
+		                                LIMIT 1), 'N')
+		        WHEN 'D' THEN event.dls_ind
+		    END AS ffmInd,
+		    public.pkg_common__GET_FLT_ATA(opr.flt_key, opr.sch_date, opr.flt_type, 'DD')  AS ata, 
+		    CONCAT(public.pkg_common__GET_FLT_ETA(opr.flt_key, opr.sch_date, opr.flt_type, 'DD')  , COALESCE(opr.est_time_source, CONCAT(' (', opr.est_time_source, ')'), NULL)) AS eta,
+		    TO_CHAR(opr.lm_date, 'DDMMYY HH24:MI:SS') AS lastModifiedDate,
+		    TO_CHAR(event.lm_date, 'DDMMYY HH24:MI:SS') AS lastModifiedDateEvent,
+		    CASE
+		        WHEN (SELECT COUNT(1) FROM imp_ramp_chk_hd ii WHERE ii.flt_key = opr.flt_key AND TO_CHAR(ii.flt_date, 'DDMONYY') = TO_CHAR(opr.sch_date, 'DDMONYY') AND opr.flt_type = 'A') > 0 THEN 'Y'
+		        WHEN (SELECT COUNT(1) FROM imp_car_shp ss WHERE ss.flt_key = opr.flt_key AND TO_CHAR(ss.flt_date, 'DDMONYY') = TO_CHAR(opr.sch_date, 'DDMONYY') AND opr.flt_type = 'A') > 0 THEN 'Y'
+		        ELSE 'N'
+		    END AS cargoContent,
+		    CONCAT(TO_CHAR(opr.est_date, 'YYYYMMDD'), LPAD(CAST(opr.est_time AS TEXT), 4, '0')) AS estimateDate,
+		    CONCAT(TO_CHAR(opr.sch_date, 'YYYYMMDD'), LPAD(CAST(opr.sch_time AS TEXT), 4, '0')) AS scheduleDate,
+		    opr.rho_id AS rhoUser,
+		    (SELECT code_desc FROM cust_company WHERE code = opr.rho_id) AS rhoUserName,
+		    opr.manp_rmk AS manpowerRemark,
+		    (SELECT STRING_AGG(brd_point, '/') || '/' || STRING_AGG(off_point, '/')
+		     FROM flt_opr_leg
+		     WHERE tr_no = opr.tr_no) AS route,
+		    opr.dest AS dest,
+		    opr.orig AS orig,
+		    COALESCE(opr.stop_auto_est_yn, 'N') AS stopAutoEstYN,
+		    opr.est_time_source AS estTimeSource,
+		    opr.vessel_id AS vesselId,
+		    opr.vessel_name AS vesselName,
+		    opr.voyage_num AS voyageNumber,
+		    opr.call_sign_vessel AS vesselflightCallSign,
+		    opr.shipping_agent AS shippingAgent
+		FROM
+		    flt_opr opr
+		    JOIN flt_opr_events event ON opr.tr_no = event.tr_no
+		    JOIN flt_opr_leg leg ON opr.tr_no = leg.tr_no
+			WHERE	OPR.TR_NO = EVENT.TR_NO	 AND OPR.TR_NO=LEG.TR_NO  AND OPR.FLT_TYPE = CASE UPPER(#flightType#) WHEN 'B' THEN OPR.FLT_TYPE ELSE UPPER(#flightType#) END	 
+				]]>
+		<isNotEmpty property="flightCarr" prepend="AND">
+          OPR.CARR_CODE LIKE UPPER (#flightCarr#) 
+     	</isNotEmpty>
+     	<isNotEmpty property="rhoUser" prepend="AND">
+     	( opr.RHO_ID IN (SELECT CODE AS codeId FROM CUST_COMPANY WHERE RHO_YN = 'Y'and code_desc =#rhoUser#) )
+     	</isNotEmpty>
+     	<isEmpty property="flightCarr">
+           	<isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+            </isNotEmpty>
+     	</isEmpty>
+     	<isNotEmpty property="flightNo" prepend="AND">
+          OPR.FLT_NO LIKE UPPER (#flightNo#) 
+     	</isNotEmpty>		
+     	<dynamic prepend="AND"> (
+     	<isNotEmpty property="flightType" prepend="OR">
+          OPR.FLT_TYPE = 'B' 
+     </isNotEmpty>
+     	<isNotEmpty property="flightType" prepend="OR">
+          OPR.FLT_TYPE != 'B' 
+     </isNotEmpty>     	
+     	</dynamic>)   			
+	<isNotEmpty property="fromLoc" prepend="AND">         
+           'Y' = (CASE WHEN OPR.FLT_TYPE = 'A' THEN
+                		   (CASE WHEN (select count(1) from flt_opr_leg leg where OPR.TR_NO  = leg.TR_NO and brd_point in #fromLoc#) > 0 then 'Y' ELSE 'N' END)
+            		   WHEN OPR.FLT_TYPE = 'D' THEN 
+                		   (CASE WHEN (select count(1) from flt_opr_leg leg where OPR.TR_NO  = leg.TR_NO and off_point in #fromLoc#) > 0 then 'Y' ELSE 'N' END)
+          			ELSE 'N'
+          	     END)
+     	</isNotEmpty>		
+     	<isNotEmpty property="schDate" prepend="AND">
+	     	TO_TIMESTAMP(CONCAT(TO_CHAR(opr.sch_date, 'DDMONYY'), TRIM(TO_CHAR(opr.sch_time, '0000'))), 'DDMONYYHH24MI')
+	        BETWEEN TO_TIMESTAMP(CONCAT(#schDate#, #schTimeHr#, #schTimeMin#), 'DDMONYYHH24MI')
+	        AND TO_TIMESTAMP(CONCAT(#schDateTo#, #schTimeHrTo#, #schTimeMinTo#), 'DDMONYYHH24MI')
+        </isNotEmpty>	    
+ 		<isNotEmpty property="carrList" prepend="AND">
+     		OPR.carr_code = #carrList#
+     	</isNotEmpty>
+     	<isNotEmpty property="groupCarrList" prepend="AND">
+     		( OPR.carr_code =  #groupCarrList#  OR  OPR.carr_code IN (SELECT CARR_CODE FROM MAST_CARR_GRP WHERE GRP_CARR_CODE=  #groupCarrList#))
+     	</isNotEmpty>
+     	<isNotEmpty property="module" prepend="AND">
+     		OPR.FLT_MODULE1 = #module#
+     	</isNotEmpty>
+     	<isNotEmpty property="fltFromDate" >
+     		<isNotEmpty property="fltToDate" >
+	     	AND	CASE  WHEN TO_DATE(CONCAT(TO_CHAR(OPR.ACT_DATE,'DDMONYY') ,|trim(TO_CHAR(OPR.ACT_TIME,'0000'))), 'DDMONYYHH24MI') IS NULL THEN 
+	        CASE  WHEN TO_DATE(CONCAT(TO_CHAR(OPR.EST_DATE,'DDMONYY') ,|trim(TO_CHAR(OPR.EST_TIME,'0000'))), 'DDMONYYHH24MI') IS NULL THEN 
+	        TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY') ,trim(TO_CHAR(OPR.SCH_TIME,'0000'))), 'DDMONYYHH24MI') ELSE
+	        TO_DATE(CONCAT(TO_CHAR(OPR.EST_DATE,'DDMONYY') ,trim(TO_CHAR(OPR.EST_TIME,'0000'))), 'DDMONYYHH24MI') END ELSE
+	        TO_DATE(CONCAT(TO_CHAR(OPR.ACT_DATE,'DDMONYY') ,trim(TO_CHAR(OPR.ACT_TIME,'0000'))), 'DDMONYYHH24MI') END
+	  		BETWEEN TO_DATE(CONCAT(#fltFromDate#,#fltTimeHr#,#fltTimeMin#),'DDMONYYHH24MI') AND TO_DATE(CONCAT(#fltToDate#,#fltTimeHrTo#,#fltTimeMinTo#),'DDMONYYHH24MI')       		
+     	</isNotEmpty>
+     	</isNotEmpty>
+     	<isNotEmpty property="country" prepend="AND">
+     		(LEG.BRD_POINT IN ( SELECT DISTINCT mast_city.code FROM mast_city, mast_country
+			  WHERE mast_country.code =mast_city.CTRY_CODE
+			 AND  mast_country.code   =#country# ) 
+			 OR LEG.OFF_POINT IN ( SELECT DISTINCT mast_city.code FROM mast_city, mast_country
+			  WHERE mast_country.code =mast_city.CTRY_CODE
+			 AND  mast_country.code   =#country# ))
+     	</isNotEmpty>
+		<isNotEmpty property="cargoArcftType" prepend="AND">
+     		OPR.CGO_ACFT_TYPE = #cargoArcftType#
+     	</isNotEmpty>
+     	<isEqual property="outstandingYN" compareValue="Y" prepend="AND">
+     		((OPR.FLT_TYPE='A' AND EVENT.FLT_CLS_YN='N') OR ((OPR.FLT_TYPE='D' AND (public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,OPR.FLT_TYPE,'DD')) IS NULL)))
+     	</isEqual>
+		<dynamic prepend="ORDER BY ">
+		 	<isEmpty property="sortOrder.sortField">
+               COALESCE(CONCAT(TO_CHAR(opr.est_date, 'YYYYMMDD'), LPAD(CAST(opr.est_time AS TEXT), 4, '0')),CONCAT(TO_CHAR(opr.sch_date, 'YYYYMMDD'), LPAD(CAST(opr.sch_time AS TEXT), 4, '0'))) ASC
+           </isEmpty>           
+           <isNotEmpty property="sortOrder.sortField">
+           		 <isEqual property="sortOrder.sortField" compareValue="hrAndMinSch asc">
+	            	 CONCAT(TO_CHAR(OPR.SCH_DATE,'YYYYMMDD'),LPAD(CAST(OPR.SCH_TIME AS TEXT),4,'0')) ASC
+	             </isEqual>
+	             <isEqual property="sortOrder.sortField" compareValue="eta asc">
+	             	CONCAT(TO_CHAR(OPR.EST_DATE,'YYYYMMDD'),LPAD(CAST(OPR.EST_TIME AS TEXT),4,'0')) ASC
+	             </isEqual>
+	             <isEqual property="sortOrder.sortField" compareValue="ata asc">
+	             	CONCAT(TO_CHAR(OPR.ACT_DATE,'YYYYMMDD'),LPAD(CAST(OPR.ACT_TIME AS TEXT),4,'0')) ASC
+	             </isEqual>
+	             <isEqual property="sortOrder.sortField" compareValue="hrAndMinSch desc">
+	            	CONCAT(TO_CHAR(OPR.SCH_DATE,'YYYYMMDD'),LPAD(CAST(OPR.SCH_TIME AS TEXT),4,'0')) DESC
+	             </isEqual>
+	             <isEqual property="sortOrder.sortField" compareValue="eta desc">
+	             	CONCAT(TO_CHAR(OPR.EST_DATE,'YYYYMMDD'),LPAD(CAST(OPR.EST_TIME AS TEXT),4,'0')) DESC
+	             </isEqual>
+	             <isEqual property="sortOrder.sortField" compareValue="ata desc">
+	             	CONCAT(TO_CHAR(OPR.ACT_DATE,'YYYYMMDD'),LPAD(CAST(OPR.ACT_TIME AS TEXT),4,'0')) DESC
+	             </isEqual>
+           		 <isNotEqual property="sortOrder.sortField" compareValue="hrAndMinSch asc">
+           		 	<isNotEqual property="sortOrder.sortField" compareValue="eta asc">
+           		 		<isNotEqual property="sortOrder.sortField" compareValue="ata asc">
+           		 			<isNotEqual property="sortOrder.sortField" compareValue="hrAndMinSch desc">
+           		 				<isNotEqual property="sortOrder.sortField" compareValue="eta desc">
+           		 					<isNotEqual property="sortOrder.sortField" compareValue="ata desc">
+           		 						$sortOrder.sortField$
+           		 					</isNotEqual>
+           		 				</isNotEqual>
+           		 			</isNotEqual>
+           		 		</isNotEqual>
+           		 	</isNotEqual>
+           		 </isNotEqual>
+				
+		   </isNotEmpty>    
+		     ,flightKey
+        </dynamic>
+   	</select>
+
+		<select id="FLT_fetchDailyFlightListCOUNT"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.Integer">
+	
+		SELECT 	count(*) as totalRowCount
+				FROM	FLT_OPR OPR, FLT_OPR_EVENTS EVENT, FLT_OPR_LEG LEG
+				WHERE	OPR.TR_NO = EVENT.TR_NO	 AND OPR.TR_NO=LEG.TR_NO  AND	 OPR.FLT_TYPE = CASE UPPER(#flightType#) WHEN 'B' THEN OPR.FLT_TYPE ELSE UPPER(#flightType#) END
+		<isNotEmpty property="rhoUser" prepend="AND">
+          OPR.RHO_ID = #rhoUser#
+     	</isNotEmpty>		 <isNotEmpty property="carrList" prepend="AND">
+     		OPR.carr_code = #carrList#
+     	</isNotEmpty>
+     	<isNotEmpty property="groupCarrList" prepend="AND">
+     		( OPR.carr_code =  #groupCarrList#  OR  OPR.carr_code IN (SELECT CARR_CODE FROM MAST_CARR_GRP WHERE GRP_CARR_CODE=  #groupCarrList#))
+     	</isNotEmpty>
+     	<isNotEmpty property="module" prepend="AND">
+     		OPR.FLT_MODULE1 = #module#
+     	</isNotEmpty>
+     	<isNotEmpty property="fltFromDate" >
+     		<isNotEmpty property="fltToDate" >
+     	AND	CASE  WHEN TO_DATE(CONCAT(TO_CHAR(OPR.ACT_DATE,'DDMONYY') ,|trim(TO_CHAR(OPR.ACT_TIME,'0000'))), 'DDMONYYHH24MI') IS NULL THEN 
+        CASE  WHEN TO_DATE(CONCAT(TO_CHAR(OPR.EST_DATE,'DDMONYY') ,|trim(TO_CHAR(OPR.EST_TIME,'0000'))), 'DDMONYYHH24MI') IS NULL THEN 
+        TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY') ,trim(TO_CHAR(OPR.SCH_TIME,'0000'))), 'DDMONYYHH24MI') ELSE
+        TO_DATE(CONCAT(TO_CHAR(OPR.EST_DATE,'DDMONYY') ,trim(TO_CHAR(OPR.EST_TIME,'0000'))), 'DDMONYYHH24MI') END ELSE
+        TO_DATE(CONCAT(TO_CHAR(OPR.ACT_DATE,'DDMONYY') ,trim(TO_CHAR(OPR.ACT_TIME,'0000'))), 'DDMONYYHH24MI') END
+  BETWEEN TO_DATE(CONCAT(#fltFromDate#,#fltTimeHr#,#fltTimeMin#),'DDMONYYHH24MI') AND TO_DATE(CONCAT(#fltToDate#,#fltTimeHrTo#,#fltTimeMinTo#),'DDMONYYHH24MI') 
+     		
+     		
+     		
+     		
+     	</isNotEmpty>
+     	</isNotEmpty>
+     	<isNotEmpty property="country" prepend="AND">
+     		(LEG.BRD_POINT IN ( SELECT DISTINCT mast_city.code FROM mast_city, mast_country
+  WHERE mast_country.code =mast_city.CTRY_CODE
+ AND  mast_country.code   =#country# ) 
+ OR LEG.OFF_POINT IN ( SELECT DISTINCT mast_city.code FROM mast_city, mast_country
+  WHERE mast_country.code =mast_city.CTRY_CODE
+ AND  mast_country.code   =#country# ))
+     	</isNotEmpty>
+		<isNotEmpty property="flightCarr" prepend="AND">
+          OPR.CARR_CODE LIKE UPPER (#flightCarr#) 
+     	</isNotEmpty>
+     	<isEmpty property="flightCarr">
+           	<isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+            </isNotEmpty>
+     	</isEmpty>
+		<isNotEmpty property="flightNo" prepend="AND">
+          OPR.FLT_NO LIKE UPPER (#flightNo#) 
+     	</isNotEmpty>		
+     	<dynamic prepend="AND"> (
+     	<isNotEmpty property="flightType" prepend="OR">
+          OPR.FLT_TYPE = 'B' 
+     </isNotEmpty>
+     	<isNotEmpty property="flightType" prepend="OR">
+          OPR.FLT_TYPE != 'B' 
+     </isNotEmpty>     	
+     	</dynamic>)   			
+	<isNotEmpty property="fromLoc" prepend="AND">
+           'Y' = (CASE WHEN OPR.FLT_TYPE = 'A' THEN
+                		   (CASE WHEN (select count(1) from flt_opr_leg leg where OPR.TR_NO  = leg.TR_NO and brd_point in #fromLoc#) > 0 then 'Y' ELSE 'N' END)
+            		   WHEN OPR.FLT_TYPE = 'D' THEN 
+                		   (CASE WHEN (select count(1) from flt_opr_leg leg where OPR.TR_NO  = leg.TR_NO and off_point in #fromLoc#) > 0 then 'Y' ELSE 'N' END)
+          			ELSE 'N'
+          	     END)
+     	</isNotEmpty>		
+     	<isNotEmpty property="schDate" prepend="AND">
+     	TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'),trim(to_char(OPR.SCH_TIME,'0000'))), 'DDMONYYHH24MI')
+              BETWEEN TO_DATE(CONCAT(#schDate#,#schTimeHr#,#schTimeMin#),'DDMONYYHH24MI')
+				  AND TO_DATE(CONCAT(#schDateTo#,#schTimeHrTo#,#schTimeMinTo#),'DDMONYYHH24MI')
+     	</isNotEmpty>
+		<isNotEmpty property="cargoArcftType" prepend="AND">
+     		OPR.CGO_ACFT_TYPE = #cargoArcftType#
+     	</isNotEmpty>
+		<isEqual property="outstandingYN" compareValue="Y" prepend="AND">
+     		((OPR.FLT_TYPE='A' AND EVENT.FLT_CLS_YN='N') OR ((OPR.FLT_TYPE='D' AND (public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,OPR.FLT_TYPE,'DD')) IS NULL)))
+     	</isEqual>
+   	</select>
+   	<select id="FLT_fetchScheduleList"  parameterClass="cargo.cms.flight.bo.FlightBO" resultClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+		SELECT  CAST(TR_NO AS TEXT) txnNo, CARR_CODE flightCarr, FLT_NO flightNo, FLT_KEY flightKey,
+			   TO_CHAR(START_DATE,'DDMONYY') schDate, TO_CHAR(END_DATE,'DDMONYY') schDateTo, 
+			   TRIM(CONCAT(CASE COALESCE(MON_FLG,'N') WHEN 'Y' THEN 1 ELSE '' END , CASE COALESCE(TUE_FLG,'N') WHEN 'Y' THEN 2 ELSE '' END , CASE COALESCE(WED_FLG,'N') WHEN 'Y' THEN 3 ELSE '' END
+			   , CASE COALESCE(THU_FLG,'N') WHEN 'Y' THEN 4 ELSE '' END , CASE COALESCE(FRI_FLG,'N') WHEN 'Y' THEN 5 ELSE '' END , CASE COALESCE(SAT_FLG,'N') WHEN 'Y' THEN 6 ELSE '' END 
+			   , CASE COALESCE(SUN_FLG,'N') WHEN 'Y' THEN 7 ELSE '' END)) frequency, 
+			   LM_USER_ID as staffId, FUN_GET_SCHEDULE_PORT(TR_NO,0) fromLoc,
+			   FUN_GET_SCHEDULE_PORT(TR_NO,-1) toLoc,FUN_GET_SCHEDULE_PORT(TR_NO,-2) std,
+			   FUN_GET_SCHEDULE_PORT(TR_NO,-3) sta,	
+			   FUN_GET_SCHEDULE_PORT(TR_NO,1) portOfCall1,FUN_GET_SCHEDULE_PORT(TR_NO,2) portOfCall2,
+			   FUN_GET_SCHEDULE_PORT(TR_NO,3) portOfCall3,
+			   coalesce(OUTSTANDING,'N') outstandingYN, RHO_ID rhoUser, CR_USER_ID AS createBy,
+			   to_char(cr_date,'DDMONYY HH24:MI:SS') createDate
+		FROM   FLT_SCH
+		WHERE  CARR_CODE = coalesce(nullif(#flightCarr#,''),CARR_CODE)
+		AND	   FLT_NO = coalesce(nullif(#flightNo#,''),FLT_NO)
+		AND	    coalesce(CGO_ACFT_TYPE,'*') = coalesce( nullif(#cargoArcftType#,''), coalesce(CGO_ACFT_TYPE,'*'))
+		AND	   ((TO_DATE(#schDate#,'DDMONYY') between START_DATE and END_DATE) or (TO_DATE(#schDateTo#,'DDMONYY')between START_DATE and END_DATE) or
+		     		 (START_DATE >= TO_DATE(#schDate#,'DDMONYY')  and END_DATE<=TO_DATE(#schDateTo#,'DDMONYY'))) 
+		     		 AND cr_user_id not in ('SSMCNL', 'SSMCNLNEW', 'SSMEQT', 'SSMTIM') 
+		]]>
+		<isNotEmpty property="loginCarrier">
+			AND   (CARR_CODE = #loginCarrier#
+               OR CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+               WHERE GRP_CARR_CODE   = #loginCarrier#))   
+		</isNotEmpty>
+		<isEqual property="outstandingYN" compareValue="Y" prepend="AND">
+     		OUTSTANDING = 'Y'
+     	</isEqual>
+		
+				<dynamic prepend="ORDER BY ">
+           <isNotEmpty property="sortOrder.sortField">
+             $sortOrder.sortField$
+           </isNotEmpty>
+        </dynamic>
+   	</select>
+   	 <select id="FLT_fetchScheduleListCOUNT"  parameterClass="cargo.cms.flight.bo.FlightBO" resultClass="java.lang.Integer">
+	<![CDATA[
+		SELECT  count(*) as totalRowCount
+		FROM   FLT_SCH
+		WHERE  CARR_CODE = coalesce(nullif(#flightCarr#,''),CARR_CODE)
+		AND	   FLT_NO = coalesce(nullif(#flightNo#,''),FLT_NO)
+		AND	    coalesce(CGO_ACFT_TYPE,'*') = coalesce(nullif(#cargoArcftType#,''), coalesce(CGO_ACFT_TYPE,'*'))
+		AND	   ((TO_DATE(#schDate#,'DDMONYY') between START_DATE and END_DATE) or (TO_DATE(#schDateTo#,'DDMONYY')between START_DATE and END_DATE) or
+		     		 (START_DATE >= TO_DATE(#schDate#,'DDMONYY')  and END_DATE<=TO_DATE(#schDateTo#,'DDMONYY')))
+		     		 AND cr_user_id not in ('SSMCNL', 'SSMCNLNEW', 'SSMEQT', 'SSMTIM') 
+		]]>
+		<isNotEmpty property="loginCarrier">
+			AND   (CARR_CODE = #loginCarrier#
+               OR CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+               WHERE GRP_CARR_CODE   = #loginCarrier#))   
+		</isNotEmpty>
+		<isEqual property="outstandingYN" compareValue="Y" prepend="AND">
+     		OUTSTANDING = 'Y'
+     	</isEqual>
+   	</select>
+
+	<select id="FLT_fetchDailyFlightWeatherList"  parameterClass="map"  resultClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+		SELECT 	CAST(OPR.TR_NO AS TEXT) txnNo, OPR.CARR_CODE flightCarr, OPR.FLT_NO flightNo, TO_CHAR(OPR.SCH_DATE,'DDMONYY') schDate,
+				rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),3,4)), ':') hrAndMinSch,
+				rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),3,4)), ':') hrAndMinEst,
+				rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),3,4)), ':') hrAndMinAct,
+				OPR.FLT_TYPE flightType, CASE OPR.FLT_TYPE WHEN 'A' THEN ORIG WHEN 'D' THEN DEST ELSE ORIG END fromLoc,OPR.ACFT_TYPE cargoArcftType, WTHR_COND weather,
+				(SELECT CODE_DESC FROM MAST_CODE_DTL WHERE CODE_TYPE='WTH_CONDN' AND CODE=OPR.WTHR_COND) AS weatherdesc,
+				TO_CHAR(OPR.LM_DATE,'DDMONYY HH24:MI:SS') lastModifiedDate
+
+		FROM	FLT_OPR OPR LEFT OUTER JOIN FLT_OPR_EVENTS EVENT ON OPR.TR_NO = EVENT.TR_NO
+		WHERE	OPR.FLT_TYPE LIKE #FLT_TYPE# AND OPR.CARR_CODE LIKE UPPER(#CARR_CODE#)
+		AND     OPR.CARR_CODE IN (SELECT CODE FROM MAST_CARRIER	WHERE OWNED_CARR = 'Y')
+		AND		OPR.FLT_NO LIKE UPPER(#FLT_NO#)
+		AND		to_date(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'),trim(to_char(OPR.SCH_TIME,'0000'))),'DDMONYYHH24MI')	
+          		BETWEEN TO_DATE(CONCAT(#SCH_DATE#,#SCH_TIME_FROM#),'DDMONYYHH24MI') 
+          			AND TO_DATE(CONCAT(#SCH_DATE_TO#,#SCH_TIME_TO#),'DDMONYYHH24MI')
+		]]>
+		<isNotEmpty property="LOGIN_CARR">
+			AND   (OPR.CARR_CODE = #LOGIN_CARR#
+               OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+               WHERE GRP_CARR_CODE     = #LOGIN_CARR#))   
+		</isNotEmpty>
+   	</select>
+
+	<delete id="FLT_deleteFLTOPRLEG" parameterClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+			DELETE FROM FLT_OPR_LEG WHERE TR_NO = #txnNo# 
+		]]>
+	</delete>
+
+	<delete id="FLT_deleteFLTOPREVENT" parameterClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+			DELETE FROM FLT_OPR_EVENTS WHERE TR_NO = #txnNo# 
+		]]>
+	</delete>
+
+	<delete id="FLT_deleteFLTOPRSEG" parameterClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+			DELETE FROM FLT_OPR_SEG WHERE TR_NO = #txnNo# 
+		]]>
+	</delete>
+
+	<delete id="FLT_deleteFLTOPR" parameterClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+			DELETE FROM FLT_OPR WHERE TR_NO = #txnNo# and to_char(LM_DATE, 'ddMMYY hh24:mi:ss') = #lastModifiedDate#
+		]]>
+	</delete>
+
+	<select id="FLT_checkSegmentData"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT COUNT(*) FROM FLT_OPR_SEG WHERE TR_NO = #txnNo#
+		]]>
+   	</select>
+	<!-- added by haji on 20-06-06 starts -->
+	<select id="FLT_checkEvents"  parameterClass="map"  resultClass="java.lang.String">
+	SELECT COALESCE(COUNT(*),0) FROM FLT_OPR_EVENTS 
+	WHERE FLT_CLS_YN !='Y' AND
+	  OFLD_FLG !='Y' AND
+	  MNFST_RDY_FLG !='Y' AND
+	  DLS_IND !='Y' AND
+  	  FREEZE_IND !='Y' AND
+	  BUILDUP_CDATE IS NULL AND
+	  WHSE_COMPL_DATE IS NULL AND
+	  DOC_COMPL_DATE IS NULL AND
+	  TR_NO = #txnNo#
+	</select>
+	<select id="flt_check_premanifest"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.String">	
+		SELECT COALESCE(COUNT(*),0) FROM EXP_PMANIFEST_ULD_AWB  WHERE FLT_KEY =#flightKey# AND FLT_DATE = TO_DATE(#schDate#,'DDMONYY')
+		and case #flightType# when 'D' then 'E' else #flightType# end = 'E'
+	</select>
+	
+	<select id="flt_check_impcar"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.String">	
+		SELECT COALESCE(COUNT(*),0) FROM IMP_CAR_SHP WHERE FLT_KEY =#flightKey# AND FLT_DATE = TO_DATE(#schDate#,'DDMONYY')AND CAR_CREATED='Y'
+		and case #flightType# when 'A' then 'I' else #flightType# end = 'I'
+	</select>
+	
+	<select id="flt_check_impcar_ffm"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.String">	
+		SELECT COALESCE(COUNT(*),0) FROM IMP_CAR_SHP WHERE FLT_KEY =#flightKey# AND FLT_DATE = TO_DATE(#schDate#,'DDMONYY')AND FFM_FLG='Y'
+		and case #flightType# when 'A' then 'I' else #flightType# end = 'I'
+	</select>
+	<select id="flt_check_impcar_recdpcs"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.String">	
+		SELECT COALESCE(COUNT(*),0) FROM IMP_CAR_SHP WHERE FLT_KEY =#flightKey# AND FLT_DATE = TO_DATE(#schDate#,'DDMONYY')AND RECD_PCS >0
+		and case #flightType# when 'D' then 'E' else #flightType# end = 'E'
+	</select>
+	<!-- added by haji on 20-06-06 ends -->
+
+<!-- modified by haji on 12-05-06 starts-->
+	<select id="FLT_selectDailyFlightData"  parameterClass="map"  resultClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+		SELECT 	CAST(OPR.TR_NO AS TEXT) txnNo, OPR.CARR_CODE flightCarr, OPR.FLT_NO flightNo, TO_CHAR(OPR.SCH_DATE,'DDMONYY') schDate,
+				TO_CHAR(OPR.EST_DATE,'DDMONYY') estDate, TO_CHAR(OPR.EST_DATE,'DDMONYY') estDateConst,
+				TO_CHAR(OPR.ACT_DATE,'DDMONYY') actDate,OPR.FLT_TYPE flightType, 
+				SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),1,2) schTimeHr,
+				SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),3,4) schTimeMin,
+				SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),1,2) estTimeHr, SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),0,2) estTimeHrConst,
+				SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),3,4) estTimeMin, SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),3,4) estTimeMinConst,
+				SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),1,2) actTimeHr,
+				SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),3,4) actTimeMin,
+				
+				TO_CHAR(OPR.ACT_DATE,'DDMONYY') oldActDate,
+				SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),1,2) oldActTimeHr,
+				SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),3,4) oldActTimeMin,
+				
+				SUBSTR(TRIM(TO_CHAR(OPR.ORIG_TIME,'0000')),1,2) schTimeDepHr,
+				SUBSTR(TRIM(TO_CHAR(OPR.ORIG_TIME,'0000')),3,4) schTimeDepMin,
+				SUBSTR(TRIM(TO_CHAR(OPR.DEST_TIME,'0000')),1,2) schTimeArrHr,
+				SUBSTR(TRIM(TO_CHAR(OPR.DEST_TIME,'0000')),3,4) schTimeArrMin,
+				OPR.ORIG fromLoc, OPR.DEST toLoc, OPR.SVC_TYPE svcType,OPR.CGO_ACFT_TYPE cargoArcftType, 
+				OPR.ACFT_REG_NO arcftRegionNo,OPR.STATUS arrDepStatus,OPR.SCH_GATE gate,OPR.ACFT_PRK_BAY bay,
+				OPR.DELAY_CODE delayCode,OPR.GROUND_HANDLER handler,CAST(OPR.PRTY_IND AS TEXT) priorityInd,OPR.WTHR_COND weather,
+				OPR.RMK remarks,OPR.JV_CODE jvInd,OPR.WH_LEVEL warehouselvl,OPR.BRKBUP_OFF buildBreakDown,
+				(CASE WHEN (SELECT COUNT(1) FROM EDI_FFM_MSG t
+													WHERE FLT_KEY = OPR.FLT_KEY AND FLT_DATE = OPR.SCH_DATE AND FFM_STATUS = 'P'
+													and exists (select null from EDI_FFM_ULD where tr_no = t.tr_no) 
+LIMIT 1) > 0 THEN 'Y' ELSE 'N' END) ffmInd, 
+				COALESCE(EVENT.DLS_IND,'N') dlsInd, OPR.FLT_MODULE1 fltmodule1, OPR.FLT_MODULE2 fltmodule2, CHKOUT_AREA chkOutArea, ACFT_PRK_BAY arrDepStatus,
+				TO_IND toIndicator,
+			   (select cc.CODE_DESC from CUST_COMPANY cc where cc.code=  OPR.rho_id )  rhoUserName, OPR.MANP_RMK manpowerRemark,
+			    COALESCE(OPR.STOP_AUTO_EST_YN, 'N') stopAutoEstYN,
+    			OPR.EST_TIME_SOURCE estTimeSource, OPR.VESSEL_ID vesselId, OPR.VESSEL_NAME vesselName, OPR.VOYAGE_NUM voyageNumber, OPR.CALL_SIGN_VESSEL vesselflightCallSign, OPR.SHIPPING_AGENT shippingAgent     
+		FROM	FLT_OPR OPR LEFT OUTER JOIN FLT_OPR_EVENTS EVENT ON OPR.TR_NO = EVENT.TR_NO
+		WHERE	OPR.TR_NO = #txnNo#
+		]]>
+   	</select>
+<!-- modified by haji on 12-05-06 ends-->
+	<select id="FLT_selectDailyFlightLegData"  parameterClass="map"  resultClass="cargo.cms.flight.bo.FlightLegBO">
+	<![CDATA[
+		SELECT 	CAST(TR_NO AS TEXT) txnNo, CAST(DOC_LINE_NO AS TEXT) docLineNo, BRD_POINT fromLoc,
+				OFF_POINT toLoc, CAST(LEG_ORD AS TEXT) srlNo,
+				TO_CHAR(SCH_ARR_DATE,'DDMONYY') schArrDate,
+				SUBSTR(TRIM(TO_CHAR(COALESCE(SCH_ARR_TIME,0),'0000')),1,2) schArrTimeHr,
+				SUBSTR(TRIM(TO_CHAR(COALESCE(SCH_ARR_TIME,0),'0000')),3,4) schArrTimeMin,
+				TO_CHAR(SCH_DEP_DATE,'DDMONYY') schDepDate,
+				SUBSTR(TRIM(TO_CHAR(COALESCE(SCH_DEP_TIME,0),'0000')),1,2) schDepTimeHr,
+				SUBSTR(TRIM(TO_CHAR(COALESCE(SCH_DEP_TIME,0),'0000')),3,4) schDepTimeMin,
+				ACFT_TYPE airCraftType, 
+				JNT_CAR_1 jointFltCar1,JNT_FLT_1 jointFltNo1,JNT_CAR_2 jointFltCar2,JNT_FLT_2 jointFltNo2,
+				JNT_CAR_3 jointFltCar3,JNT_FLT_3 jointFltNo3,JNT_CAR_4 jointFltCar4,JNT_FLT_4 jointFltNo4,
+				JNT_CAR_5 jointFltCar5,JNT_FLT_5 jointFltNo5,JNT_CAR_6 jointFltCar6,JNT_FLT_6 jointFltNo6,
+				PROHIBIT_SHC1 prohibitedShc1, PROHIBIT_SHC2 prohibitedShc2, PROHIBIT_SHC3 prohibitedShc3, HSE_BU_IND houseBldConfig, 
+				AUTO_ASSGN_ULD autoAssignUld 
+		FROM	FLT_OPR_LEG
+		WHERE	TR_NO = #txnNo#	Order by LEG_ORD
+		]]>
+   	</select>
+
+	<delete id="FLT_deleteFLTOPRLEGSingle" parameterClass="cargo.cms.flight.bo.FlightLegBO">
+	<![CDATA[
+			DELETE FROM FLT_OPR_LEG WHERE TR_NO = #txnNo# AND DOC_LINE_NO = #docLineNo#
+		]]>
+	</delete>
+
+	<update id="FLT_updateFLTOPRLEG" parameterClass="cargo.cms.flight.bo.FlightLegBO">
+		UPDATE	FLT_OPR_LEG SET BRD_POINT =  UPPER(#fromLoc#), OFF_POINT =  UPPER(#toLoc#),LEG_ORD = #srlNo:NUMERIC#,
+				SCH_DEP_DATE = TO_DATE(#schDepDate#,'DDMONYY'), SCH_DEP_TIME = #hrAndMinSchDep:NUMERIC#,
+				SCH_ARR_DATE = TO_DATE(#schArrDate#,'DDMONYY'), SCH_ARR_TIME = #hrAndMinSchArr:NUMERIC#, ACFT_TYPE = #airCraftType#,
+				JNT_CAR_1 =  UPPER(#jointFltCar1#), JNT_FLT_1 = UPPER(#jointFltNo1#), JNT_CAR_2 =  UPPER(#jointFltCar2#), 
+				JNT_FLT_2 =  UPPER(#jointFltNo2#), JNT_CAR_3 =  UPPER(#jointFltCar3#), JNT_FLT_3 = UPPER(#jointFltNo3#),
+				JNT_CAR_4 =  UPPER(#jointFltCar4#), JNT_FLT_4 = UPPER(#jointFltNo4#),	JNT_CAR_5 =  UPPER(#jointFltCar5#), 
+				JNT_FLT_5 =  UPPER(#jointFltNo5#), JNT_CAR_6 =  UPPER(#jointFltCar6#), JNT_FLT_6 =  UPPER(#jointFltNo6#),
+				PROHIBIT_SHC1 = UPPER(#prohibitedShc1#),PROHIBIT_SHC2 = UPPER(#prohibitedShc2#),PROHIBIT_SHC3 = UPPER(#prohibitedShc3#),
+				HSE_BU_IND = #houseBldConfig#, AUTO_ASSGN_ULD = #autoAssignUld#, LM_USER_ID=#userId#, LM_DATE=CURRENT_TIMESTAMP(0) ,TR_TYPE='FLTCR'
+		WHERE	TR_NO = #txnNo# AND DOC_LINE_NO = #docLineNo:NUMERIC#
+	</update>
+	<!-- added by haji on 22-06-06 as per requirements given by george -->
+	<update id="FLT_updateFLTOPREVENT" parameterClass="cargo.cms.flight.bo.FlightBO">
+		UPDATE	FLT_OPR_EVENTS SET FFM_IND = COALESCE(#ffmInd#,'N'), DLS_IND = COALESCE(#dlsInd#,'N')
+		WHERE	TR_NO = #txnNo#
+	</update>
+
+	<update id="FLT_updateFLTOPROther" parameterClass="cargo.cms.flight.bo.FlightBO">
+		UPDATE	FLT_OPR SET EST_DATE = wos_to_date(#estDate#,'DDMONYY'), EST_TIME = #hrAndMinEst:NUMERIC#,
+				ACT_DATE = wos_to_date(#actDate#,'DDMONYY'), ACT_TIME = #hrAndMinAct:NUMERIC#,
+				SVC_TYPE = #svcType#, ACFT_TYPE = #airCraftType#, ACFT_REG_NO = #arcftRegionNo#,
+				STATUS = #arrDepStatus#, SCH_GATE = #gate#, ACFT_PRK_BAY = #bay#, DELAY_CODE = #delayCode#,
+				GROUND_HANDLER = #handler#, PRTY_IND = #priorityInd:NUMERIC#, WTHR_COND = #weather#, RMK = #remarks#,
+				JV_CODE = #jvInd#, WH_LEVEL = #warehouselvl#, TR_STATUS = 'U',
+				LM_USER_ID = #userId#, LM_DATE = CURRENT_TIMESTAMP(0),
+				CGO_ACFT_TYPE = #cargoArcftType#, FLT_MODULE1 = #fltModule1#,FLT_MODULE2 = #fltModule2# , 
+				CHKOUT_AREA = #chkOutArea# , TO_IND = #toIndicator#, TR_TYPE =#trtype#, RHO_ID = #rhoUser#, MANP_RMK = #manpowerRemark#,
+				STOP_AUTO_EST_YN = CASE #updateEstSource#  WHEN 'Y' THEN  'Y' ELSE #stopAutoEstYN# END, 
+				EST_TIME_SOURCE = CASE #updateEstSource#  WHEN 'Y' THEN  'USER' ELSE EST_TIME_SOURCE END,
+				VESSEL_ID = #vesselId#, VESSEL_NAME = #vesselName#, VOYAGE_NUM = #voyageNumber#, 
+				CALL_SIGN_VESSEL = #vesselflightCallSign#, SHIPPING_AGENT = #shippingAgent#
+		WHERE	TR_NO = #txnNo#
+	</update>
+
+	<update id="FLT_updateFLTOPRWeather" parameterClass="cargo.cms.flight.bo.FlightBO">
+		UPDATE	FLT_OPR SET WTHR_COND = #weather#,LM_DATE = CURRENT_TIMESTAMP(0) WHERE	TR_NO = #txnNo# and TO_CHAR(LM_DATE,'DDMONYY HH24:MI:SS') = #lastModifiedDate#
+	</update>
+
+	<!-- changed by haji on 15-05-06 -->
+	 <select id="FLT_fetchFlightReport"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="cargo.cms.flight.bo.FlightBO">
+		SELECT 	CAST(OPR.TR_NO AS TEXT) txnNo, OPR.CARR_CODE flightCarr, OPR.FLT_NO flightNo, 
+				TO_CHAR(OPR.SCH_DATE,'DDMONYY') schDate, OPR.FLT_TYPE flightType, 
+				(select code_desc from mast_code_dtl where code_type = 'FLT_SVC_TYPE' and code = OPR.SVC_TYPE) svcType,
+				rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),3,4)), ':') hrAndMinSch,				
+				rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),3,4)), ':') hrAndMinEst,				
+				rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),3,4)), ':') hrAndMinAct,				
+				CASE OPR.FLT_TYPE WHEN 'A' THEN ORIG WHEN 'D' THEN DEST ELSE ORIG END fromLoc,OPR.ACFT_TYPE airCraftType, OPR.CGO_ACFT_TYPE cargoArcftType,
+				OPR.ACFT_REG_NO arcftRegionNo, (SELECT CODE_DESC FROM MAST_CODE_DTL WHERE CODE =OPR.STATUS AND CODE_TYPE='FLT_STATUS') arrDepStatus, OPR.SCH_GATE gate,OPR.ACFT_PRK_BAY bay, OPR.WTHR_COND weather,
+				OPR.RMK remarks,OPR.LM_USER_ID lastUpdatedUser, TO_CHAR(OPR.LM_DATE,'DDMONYY HH24:MI') lastUpdatedDate,
+				public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,OPR.FLT_TYPE,'DD') AS ata,
+				public.PKG_COMMON__GET_FLT_ETA(OPR.FLT_KEY,OPR.SCH_DATE,OPR.FLT_TYPE,'DD') AS eta,
+				public.PKG_COMMON__flt_ports(OPR.FLT_KEY,OPR.SCH_DATE,OPR.FLT_TYPE) portOfCall1, '' portOfCall2,
+				'' portOfCall3,
+	            CONCAT(TO_CHAR(OPR.EST_DATE,'YYYYMMDD'),LPAD(CAST(OPR.EST_TIME AS TEXT),4,'0')) AS estimateDate,
+              	CONCAT(TO_CHAR(OPR.SCH_DATE,'YYYYMMDD'),LPAD(CAST(OPR.SCH_TIME AS TEXT),4,'0')) AS scheduleDate,
+              	OPR.VESSEL_ID vesselId, 
+    			OPR.VESSEL_NAME vesselName, 
+    			OPR.VOYAGE_NUM voyageNumber, 
+    			OPR.CALL_SIGN_VESSEL vesselflightCallSign, 
+    			OPR.SHIPPING_AGENT shippingAgent			
+		FROM	FLT_OPR OPR, MAST_CARRIER CARR
+		WHERE	OPR.FLT_TYPE = CASE UPPER(#flightType#) WHEN 'B' THEN OPR.FLT_TYPE ELSE UPPER(#flightType#) END
+		AND		TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'),trim(to_char(OPR.SCH_TIME,'0000'))), 'DDMONYYHH24MI')
+					BETWEEN TO_DATE(CONCAT(#schDate#,#startTime#),'DDMONYYHH24MI') 
+						AND TO_DATE(CONCAT(#schDateTo#,#endTime#),'DDMONYYHH24MI')	
+		AND     CARR.CODE = OPR.CARR_CODE 
+		AND     CARR.OWNED_CARR = 'Y' 
+		<isNotEmpty property="arrDepStatus" >
+			AND		COALESCE(OPR.STATUS,'%%') LIKE UPPER(#arrDepStatus#)
+		</isNotEmpty>
+		<isNotEmpty property="flightCarr" >
+			AND		OPR.CARR_CODE LIKE UPPER(#flightCarr#)	
+		</isNotEmpty>
+		
+		<isEmpty property="flightCarr">
+           	<isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE  = #loginCarrier#))                                          
+            </isNotEmpty>
+     	</isEmpty>
+     	
+		<dynamic prepend="ORDER BY ">
+			<isEmpty  property="sortOrder.sortField">
+				<isEqual property="sortByTypeFlag" compareValue="Y"> 
+					flightType asc
+				</isEqual>
+				<isEqual property="sortByTypeFlag" compareValue="N"> 
+					 COALESCE(CONCAT(TO_CHAR(OPR.EST_DATE,'YYYYMMDD'),LPAD(CAST(OPR.EST_TIME AS TEXT),4,'0')), CONCAT(TO_CHAR(OPR.SCH_DATE,'YYYYMMDD'),LPAD(CAST(OPR.SCH_TIME AS TEXT),4,'0'))) ASC
+				</isEqual>
+			</isEmpty>					  
+			 <isNotEmpty property="sortOrder.sortField">
+           		 <isEqual property="sortOrder.sortField" compareValue="hrAndMinSch asc">
+	            	 CONCAT(TO_CHAR(OPR.SCH_DATE,'YYYYMMDD'),LPAD(CAST(OPR.SCH_TIME AS TEXT),4,'0')) ASC
+	             </isEqual>
+	             <isEqual property="sortOrder.sortField" compareValue="eta asc">
+	            	CONCAT(TO_CHAR(OPR.EST_DATE,'YYYYMMDD'),LPAD(CAST(OPR.EST_TIME AS TEXT),4,'0')) ASC
+
+	             </isEqual>
+	             <isEqual property="sortOrder.sortField" compareValue="ata asc">
+	               CONCAT(TO_CHAR(OPR.ACT_DATE,'YYYYMMDD'),LPAD(CAST(OPR.ACT_TIME AS TEXT),4,'0')) ASC
+
+	             </isEqual>
+	             <isEqual property="sortOrder.sortField" compareValue="hrAndMinSch desc">
+	             CONCAT(TO_CHAR(OPR.SCH_DATE,'YYYYMMDD'),LPAD(CAST(OPR.SCH_TIME AS TEXT),4,'0')) DESC
+
+	             </isEqual>
+	             <isEqual property="sortOrder.sortField" compareValue="eta desc">
+	             CONCAT(TO_CHAR(OPR.EST_DATE,'YYYYMMDD'),LPAD(CAST(OPR.EST_TIME AS TEXT),4,'0')) DESC
+
+	             </isEqual>
+	             <isEqual property="sortOrder.sortField" compareValue="ata desc">
+	           	CONCAT(TO_CHAR(OPR.ACT_DATE,'YYYYMMDD'),LPAD(CAST(OPR.ACT_TIME AS TEXT),4,'0')) DESC
+
+	             </isEqual>
+           		 <isNotEqual property="sortOrder.sortField" compareValue="hrAndMinSch asc">
+           		 	<isNotEqual property="sortOrder.sortField" compareValue="eta asc">
+           		 		<isNotEqual property="sortOrder.sortField" compareValue="ata asc">
+           		 			<isNotEqual property="sortOrder.sortField" compareValue="hrAndMinSch desc">
+           		 				<isNotEqual property="sortOrder.sortField" compareValue="eta desc">
+           		 					<isNotEqual property="sortOrder.sortField" compareValue="ata desc">
+           		 						$sortOrder.sortField$
+           		 					</isNotEqual>
+           		 				</isNotEqual>
+           		 			</isNotEqual>
+           		 		</isNotEqual>
+           		 	</isNotEqual>
+           		 </isNotEqual>
+				
+		   </isNotEmpty>   
+		   </dynamic>	 
+   	</select>
+
+<select id="FLT_fetchFlightReportCOUNT"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.Integer">
+	
+	SELECT 	count(*) as totalRowCount
+		FROM	FLT_OPR OPR, MAST_CARRIER CARR
+		WHERE	OPR.FLT_TYPE = CASE UPPER(#flightType#) WHEN 'B' THEN OPR.FLT_TYPE ELSE UPPER(#flightType#) END
+		AND		TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'),trim(to_char(OPR.SCH_TIME,'0000'))), 'DDMONYYHH24MI')
+					BETWEEN TO_DATE(CONCAT(#schDate#,#startTime#),'DDMONYYHH24MI') 
+						AND TO_DATE(CONCAT(#schDateTo#,#endTime#),'DDMONYYHH24MI')
+		AND     CARR.CODE = OPR.CARR_CODE 
+		AND     CARR.OWNED_CARR = 'Y' 
+		<isNotEmpty property="arrDepStatus" >
+			AND		COALESCE(OPR.STATUS,'%%') LIKE UPPER(#arrDepStatus#)
+		</isNotEmpty>
+		<isNotEmpty property="flightCarr" >
+			AND		OPR.CARR_CODE LIKE UPPER(#flightCarr#)	
+		</isNotEmpty>
+		<isEmpty property="flightCarr">
+           	<isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE  = #loginCarrier#))                                          
+            </isNotEmpty>
+     	</isEmpty>
+</select>
+
+	<select id="FLT_fetchFlightInfo"  parameterClass="map"  resultClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+		SELECT * FROM (
+					SELECT  CAST((row_number() over (order by coalesce(CONCAT(TO_CHAR(OPR.EST_DATE,'YYYYMMDD'),LPAD(CAST(OPR.EST_TIME AS TEXT),4,'0')), CONCAT(TO_CHAR(OPR.SCH_DATE,'YYYYMMDD'),LPAD(CAST(OPR.SCH_TIME AS TEXT),4,'0'))) ASC)) AS TEXT) srlNo,
+					  CAST(OPR.TR_NO AS TEXT) txnNo, OPR.CARR_CODE flightCarr, OPR.FLT_NO flightNo, TO_CHAR(OPR.SCH_DATE,'DDMONYY') schDate,
+							TO_CHAR(OPR.EST_DATE,'DDMONYY') estDate,TO_CHAR(OPR.ACT_DATE,'DDMONYY') actDate,OPR.FLT_TYPE flightType,
+							rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),3,4)), ':') hrAndMinSch,
+							rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),1,2), ':',	SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),3,4)), ':') hrAndMinEst,
+							rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),3,4)), ':') hrAndMinAct,
+							OPR.ORIG fromLoc, CAST(ORIG_TIME AS TEXT) fromLocHrMin, OPR.DEST toLoc, CAST(DEST_TIME AS TEXT) toLocHrMin,
+							OPR.SVC_TYPE svcType, (SELECT CODE_DESC FROM MAST_ACFT_TYPE WHERE CODE =OPR.ACFT_TYPE)	 cargoArcftType,
+							OPR.ACFT_REG_NO arcftRegionNo, (Select code_desc from MAST_CODE_DTL where code_type = 'FLT_STATUS' and  code = OPR.STATUS)  arrDepStatus,
+							OPR.SCH_GATE gate,OPR.ACFT_PRK_BAY bay,
+							OPR.DELAY_CODE delayCode,OPR.GROUND_HANDLER handler,CAST(OPR.PRTY_IND AS TEXT) priorityInd,OPR.WTHR_COND weather,
+							OPR.RMK remarks,OPR.JV_CODE jvInd,OPR.WH_LEVEL warehouselvl,OPR.BRKBUP_OFF buildBreakDown,
+							CASE OPR.FLT_TYPE WHEN 'A' THEN COALESCE((SELECT 'Y' FROM EDI_FFM_MSG t WHERE FLT_KEY = OPR.FLT_KEY AND FLT_DATE = OPR.SCH_DATE AND FFM_STATUS = 'P' LIMIT 1), 'N') END ffmInd, 
+							EVENT.DLS_IND dlsInd, EVENT.FLT_CLS_YN flightStatus,
+              				CONCAT(TO_CHAR(OPR.EST_DATE, 'YYYYMMDD'), LPAD(CAST(OPR.EST_TIME AS TEXT), 4, '0')) AS estimateDate,
+              				CONCAT(TO_CHAR(OPR.SCH_DATE,'YYYYMMDD'),LPAD(CAST(OPR.SCH_TIME AS TEXT),4,'0')) AS scheduleDate,
+						  	public.PKG_COMMON__flt_route(OPR.FLT_KEY, OPR.SCH_DATE, OPR.FLT_TYPE) as route,
+						  	OPR.VESSEL_ID vesselId, OPR.VESSEL_NAME vesselName, OPR.VOYAGE_NUM voyageNumber, OPR.CALL_SIGN_VESSEL vesselflightCallSign, OPR.SHIPPING_AGENT shippingAgent					  	
+					FROM    FLT_OPR OPR
+                                         LEFT JOIN FLT_OPR_EVENTS EVENT ON OPR.TR_NO = EVENT.TR_NO					
+					WHERE   OPR.FLT_TYPE like #FLIGHT_TYPE# AND OPR.CARR_CODE like upper(#CARR_CODE#) AND
+							TO_DATE(CONCAT(TO_CHAR(COALESCE(OPR.ACT_DATE,COALESCE(OPR.EST_DATE,OPR.SCH_DATE)),'DDMONYY') , 
+							TRIM(TO_CHAR(COALESCE(OPR.ACT_TIME,COALESCE(OPR.EST_TIME,COALESCE(OPR.SCH_TIME,0))),'0000'))),'DDMONYYHH24MI')
+							BETWEEN  CURRENT_TIMESTAMP(0) - INTERVAL '8 hours' AND CURRENT_TIMESTAMP(0) + INTERVAL '12 hours'
+							]]>
+					<isNotEmpty property="LOGIN_CARR">
+            				AND   (OPR.CARR_CODE = #LOGIN_CARR#
+               				OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 								   WHERE GRP_CARR_CODE     = #LOGIN_CARR#))
+                 	                </isNotEmpty>					     
+					AND		OPR.TR_NO = EVENT.TR_NO
+					ORDER BY coalesce(CONCAT(TO_CHAR(OPR.EST_DATE, 'YYYYMMDD'), LPAD(CAST(OPR.EST_TIME AS TEXT), 4, '0')),CONCAT(TO_CHAR(OPR.SCH_DATE, 'YYYYMMDD'), LPAD(CAST(OPR.SCH_TIME AS TEXT), 4, '0'))) ASC)
+					WHERE	CAST(srlNo AS FLOAT) between #FROM_NO# and #TO_NUM#					
+		
+   	</select>
+	<!-- modified by haji on 17-05-06 -->
+
+	
+
+
+
+	<delete id="FLT_deleteFLTSCHLEGJNT" parameterClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+			DELETE FROM FLT_SCH_LEG_JNT WHERE TR_NO = #txnNo#
+		]]>
+	</delete>
+
+	<delete id="FLT_deleteFLTSCHLEG" parameterClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+			DELETE FROM FLT_SCH_LEG WHERE TR_NO = #txnNo#
+		]]>
+	</delete>
+
+	<delete id="FLT_deleteFLTSCHSEG" parameterClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+			DELETE FROM FLT_SCH_SEG WHERE TR_NO = #txnNo#
+		]]>
+	</delete>
+
+	<delete id="FLT_deleteFLTSCH" parameterClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+			DELETE FROM FLT_SCH WHERE TR_NO = #txnNo#
+		]]>
+	</delete>
+
+	<select id="FLT_checkSchSegmentData"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT COUNT(*) FROM FLT_SCH_SEG WHERE TR_NO = #TR_NO#
+		]]>
+   	</select>
+
+	<select id="FLT_checkSchJntLegData"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT COUNT(*) FROM FLT_SCH_LEG_JNT WHERE TR_NO = #TR_NO#
+		]]>
+   	</select>
+
+	<select id="FLT_checkSchLegData"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT COUNT(*) FROM FLT_SCH_LEG WHERE TR_NO = #TR_NO#
+		]]>
+   	</select>
+
+	<select id="FLT_fetchLegListForSchedule"  parameterClass="map"  resultClass="cargo.cms.flight.bo.ScheduleLegBO">
+	<![CDATA[
+		SELECT  CAST(LEG.DOC_LINE_NO AS TEXT) docLineNumber, CAST(LEG.TR_NO AS TEXT) trno, CAST(LEG.FRQ_NO AS TEXT) frequency, CAST(LEG.LEG_ORDER AS TEXT) legOrder,
+					   SCH.MON_FLG monday, SCH.TUE_FLG tuesday, SCH.WED_FLG wednesday,
+					   SCH.THU_FLG thursday, SCH.FRI_FLG friday, SCH.SAT_FLG saturday,SCH.SUN_FLG sunday,
+					   LEG.BRD_POINT boardPoint, LEG.OFF_POINT offPoint, 
+					   CONCAT(SUBSTR(TRIM(TO_CHAR(COALESCE(LEG.SCH_ARR_TIME,0),'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(COALESCE(LEG.SCH_ARR_TIME,0),'0000')),3,4)) scheduleArrTime, 
+					   CONCAT(SUBSTR(TRIM(TO_CHAR(COALESCE(LEG.SCH_DEP_TIME,0),'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(COALESCE(LEG.SCH_DEP_TIME,0),'0000')),3,4)) scheduleDepTime, SCH.CGO_ACFT_TYPE carraigeAircraftType, CAST((ARR_DAY_CHANGE) AS TEXT) arrDayChange,
+					   CAST(DEP_DAY_CHANGE AS TEXT) depDayChange, LEG.ACFT_TYPE aircraftType, SCH.SVC_TYPE svcType
+				FROM   FLT_SCH SCH, FLT_SCH_LEG LEG 
+				WHERE  SCH.TR_NO = #TR_NO#
+				AND    SCH.TR_NO = LEG.TR_NO
+		]]>
+   	</select>
+
+	<update id="FLT_updateFLTOPRLegAirCrft" parameterClass="cargo.cms.flight.bo.FlightLegBO">
+		UPDATE	FLT_OPR_LEG SET ACFT_TYPE = UPPER(#airCraftType#)
+		WHERE	TR_NO = #txnNo# AND DOC_LINE_NO = #docLineNo:NUMERIC#
+	</update>
+
+	<select id="FLT_GET_AAT_CARRIER"  parameterClass="map" resultClass="cargo.cms.afw.bo.MasterBO">
+	<![CDATA[
+		SELECT	CODE AS codeId, CODE_DESC AS codeDesc FROM MAST_CARRIER
+		WHERE	OWNED_CARR = 'Y' ORDER BY CODE_DESC
+		]]>
+   	</select>
+
+	<select id="FLT_checkFltNo"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT FUN_VALIDATE_FLT_NO(#FLT_NO#) 
+         ]]>
+   	</select>	
+
+	<!-- added by haji starts -->
+	<insert id="flt_insert_flt_sch" parameterClass="cargo.cms.flight.bo.ScheduleBO" >
+			INSERT INTO FLT_SCH(TR_NO,CARR_CODE, FLT_NO,START_DATE,END_DATE,FRQ_NO, FLT_KEY, MON_FLG,TUE_FLG,WED_FLG,
+					 THU_FLG,FRI_FLG,SAT_FLG,SUN_FLG,JV_CODE,WH_LEVEL,BRKBUP_OFF,CR_USER_ID,CR_DATE,LM_USER_ID,LM_DATE,CGO_ACFT_TYPE,SVC_TYPE,FLT_MODULE1,FLT_MODULE2,EXP_FLT_MODULE1,EXP_FLT_MODULE2,CHKOUT_AREA,TO_IND,RHO_ID,VESSEL_ID,VESSEL_NAME,VOYAGE_NUM,SHIPPING_AGENT)
+			VALUES(#trno#,upper(#flightCarr#),upper(#flightNo#),TO_DATE(#startDate#,'DDMONYY'),
+					TO_DATE(#endDate#,'DDMONYY'),#frqNumber#,upper(#flightKey#),
+					upper(#monday#),upper(#tuesday#),upper(#wednesday#),upper(#thursday#),upper(#friday#),
+					upper(#saturday#),upper(#sunday#),upper(#jvIndicator#),upper(#warehouseLevel#),
+					upper(#breakDown#),upper(#createUserId#), current_timestamp(0),upper(#createUserId#),current_timestamp(0),#cargoAircraftType#,#svcType#,#fltModule1#,#fltModule2#,#expFltModule1#,#expFltModule2#,#chkOutArea#,#toIndicator#,#rho#,#vesselId#,#vesselName#,#voyageNumber#,#shippingAgent#)	
+	</insert>
+
+	<insert id="flt_insert_flt_sch_leg" parameterClass="cargo.cms.flight.bo.ScheduleLegBO" >
+			INSERT INTO FLT_SCH_LEG(TR_NO,DOC_LINE_NO,CARR_CODE,FLT_NO,FLT_KEY,START_DATE,END_DATE,FRQ_NO, LEG_ORDER,
+					BRD_POINT,OFF_POINT,CGO_PASS_IND,SCH_ARR_TIME,SCH_DEP_TIME,
+					CGO_WGT,CGO_VOL,NO_OF_PLT,ACFT_TYPE,				
+					CR_USER_ID,CR_DATE,LM_USER_ID,LM_DATE,ARR_DAY_CHANGE,DEP_DAY_CHANGE,PROHIBIT_SHC1,PROHIBIT_SHC2,PROHIBIT_SHC3,HSE_BU_IND,AUTO_ASSGN_ULD)
+				VALUES(	#trno#,#docLineNumber:NUMERIC#,UPPER(#flightCarr#),#flightNo#,UPPER(#flightKey#),TO_DATE(#startDate#,'DDMONYY'),
+					TO_DATE(#endDate#,'DDMONYY'),#frqNumber:NUMERIC#,#legOrder:NUMERIC#,UPPER(#boardPoint#),UPPER(#offPoint#),
+					'P',#scheduleArrTime:NUMERIC#,#scheduleDepTime:NUMERIC#,
+					1,1,1,#aircraftType#,upper(#createUserId#),current_timestamp(0),upper(#createUserId#),current_timestamp(0),#arrDayChange:NUMERIC#,#depDayChange:NUMERIC#,#prohibitedShc1#,#prohibitedShc2#,#prohibitedShc3#,#houseBuconfig#,#autoAssignUld#)	
+	</insert>
+	
+	<update id="flt_update_flt_sch" parameterClass="cargo.cms.flight.bo.ScheduleBO">
+		UPDATE FLT_SCH SET
+			MON_FLG = upper(#monday#),
+			TUE_FLG = upper(#tuesday#),
+			WED_FLG = upper(#wednesday#),
+			THU_FLG = upper(#thursday#),
+			FRI_FLG = upper(#friday#),
+			SAT_FLG = upper(#saturday#),
+			SUN_FLG = upper(#sunday#),
+			CHKOUT_AREA = upper(#chkOutArea#),
+			WH_LEVEL =  upper(#warehouseLevel#),	
+			FLT_MODULE1 = upper(#fltModule1#),
+			FLT_MODULE2 = upper(#fltModule2#),
+			EXP_FLT_MODULE1 = upper(#expFltModule1#),
+			EXP_FLT_MODULE2 = upper(#expFltModule2#),
+			CGO_ACFT_TYPE = upper(#cargoAircraftType#),
+			SVC_TYPE = upper(#svcType#),
+			JV_CODE = upper(#jvIndicator#),
+			TO_IND = upper(#toIndicator#),
+			OUTSTANDING = 'N',
+			LM_DATE = CURRENT_TIMESTAMP(0),
+			LM_USER_ID = #createUserId#,
+			RHO_ID = #rho#,
+			VESSEL_ID = #vesselId#,
+			 VESSEL_NAME = #vesselName#, 
+			 VOYAGE_NUM = #voyageNumber#, 		
+           SHIPPING_AGENT = #shippingAgent#
+			where tr_no = #trno#
+	</update>	
+
+	<update id="flt_update_flt_sch_leg" parameterClass="cargo.cms.flight.bo.ScheduleLegBO">
+		UPDATE FLT_SCH_LEG SET BRD_POINT = UPPER(#boardPoint#), 
+			OFF_POINT = UPPER(#offPoint#), 
+			SCH_ARR_TIME = #scheduleArrTime:NUMERIC#,
+			SCH_DEP_TIME = #scheduleDepTime:NUMERIC#,
+			ACFT_TYPE= #aircraftType#, 
+			LM_USER_ID ='ADMIN', 
+			LM_DATE = current_timestamp(0),
+			ARR_DAY_CHANGE = #arrDayChange:NUMERIC#,
+			DEP_DAY_CHANGE = #depDayChange:NUMERIC#,
+			PROHIBIT_SHC1 = #prohibitedShc1#,
+			PROHIBIT_SHC2 = #prohibitedShc2#,
+			PROHIBIT_SHC3 = #prohibitedShc3#,
+			HSE_BU_IND	= #houseBuconfig#,
+			AUTO_ASSGN_ULD = #autoAssignUld#
+		WHERE TR_NO = #trno# AND DOC_LINE_NO = #docLineNumber#
+	</update>
+
+	<select id="flt_get_sch"  parameterClass="cargo.cms.flight.bo.ScheduleBO"  resultClass="cargo.cms.afw.bo.MasterBO">
+		SELECT DISTINCT CONCAT( CONCAT(TO_CHAR(START_DATE,'DDMONYY'),' - ') ,TO_CHAR(END_DATE,'DDMONYY'))  AS codeId , CONCAT( CONCAT(TO_CHAR(START_DATE,'DDMONYY'),' - ') ,TO_CHAR(END_DATE,'DDMONYY'))  AS codeDesc FROM FLT_SCH WHERE FLT_NO=#flightNo# 
+			AND CARR_CODE=upper(#flightCarr#) AND cr_user_id not in ('SSMRPL', 'SSMCNL', 'SSMCNLNEW', 'SSMEQT', 'SSMTIM')
+   	</select>
+	
+	<select id="flt_get_insert_sch"  parameterClass="cargo.cms.flight.bo.ScheduleBO"  resultClass="cargo.cms.flight.bo.ScheduleBO">
+		SELECT TR_NO AS trno,
+			CARR_CODE AS flightCarr,
+			FLT_NO AS flightNo,
+			FLT_KEY AS flightKey,
+			TO_CHAR(START_DATE,'DDMONYY') AS startDate, 
+			TO_CHAR(END_DATE,'DDMONYY') AS endDate, 
+			JV_CODE AS jvIndicator, WH_LEVEL AS warehouseLevel, 
+			CHKOUT_AREA AS chkOutArea,
+			CGO_ACFT_TYPE AS cargoAircraftType,
+			SUN_FLG AS sunday, 
+			MON_FLG AS monday,
+			TUE_FLG AS tuesday, 
+			WED_FLG AS wednesday, 
+			THU_FLG AS thursday, 
+			FRI_FLG AS friday, 
+			SAT_FLG AS saturday,
+			SVC_TYPE AS svcType,
+			FLT_MODULE1 AS fltModule1,
+			FLT_MODULE2 AS fltModule2,
+			EXP_FLT_MODULE1 AS expFltModule1,
+			EXP_FLT_MODULE2 AS expFltModule2,
+			TO_IND AS toIndicator,
+			RHO_ID AS rho,
+			VESSEL_ID AS vesselId,
+			VESSEL_NAME AS vesselName,
+           VOYAGE_NUM AS voyageNumber,
+           SHIPPING_AGENT AS shippingAgent		
+		FROM FLT_SCH WHERE CARR_CODE= upper(#flightCarr#) AND FLT_NO= #flightNo# 
+		AND START_DATE =  TO_DATE(#startDate#,'DDMONYY') 
+		AND END_DATE =  TO_DATE(#endDate#,'DDMONYY')
+		and TR_NO = #trno#
+   	</select>
+
+	<select id="flt_get_insert_legsch"  parameterClass="cargo.cms.flight.bo.ScheduleBO"  resultClass="cargo.cms.flight.bo.ScheduleLegBO">
+		SELECT TR_NO AS trno, 
+			DOC_LINE_NO AS docLineNumber,
+			LEG_ORDER AS legOrder, 
+			FRQ_NO AS frqNumber,
+			BRD_POINT AS boardPoint,
+			OFF_POINT AS offPoint, 
+			SUBSTR(TRIM(TO_CHAR(COALESCE(SCH_ARR_TIME,0),'0000')),1,2) AS scheduleTimeArrHr,
+			SUBSTR(TRIM(TO_CHAR(COALESCE(SCH_ARR_TIME,0),'0000')),3,4) AS scheduleTimeArrMin,
+			SUBSTR(TRIM(TO_CHAR(COALESCE(SCH_DEP_TIME,0),'0000')),1,2) AS scheduleTimeDepHr,
+			SUBSTR(TRIM(TO_CHAR(COALESCE(SCH_DEP_TIME,0),'0000')),3,4) AS scheduleTimeDepMin, 
+			ARR_DAY_CHANGE AS arrDayChange,
+			DEP_DAY_CHANGE AS depDayChange,
+			ACFT_TYPE AS aircraftType,
+			PROHIBIT_SHC1 AS prohibitedShc1,
+			PROHIBIT_SHC2 AS prohibitedShc2,
+			PROHIBIT_SHC3 AS prohibitedShc3,
+			AUTO_ASSGN_ULD autoAssignUld,
+			HSE_BU_IND AS houseBuConfig  					
+		FROM FLT_SCH_LEG WHERE TR_NO=#trno# order by leg_order
+   	</select>
+
+	<select id="flt_get_joint_leg"  parameterClass="cargo.cms.flight.bo.ScheduleJointFlightBO"  resultClass="cargo.cms.flight.bo.ScheduleJointFlightBO">
+		SELECT A.TR_NO AS trno,
+			A.CARR_CODE AS carrierCode,
+			A.FLT_NO AS flightNo,
+			A.FLT_KEY AS flightKey,
+			TO_CHAR(A.START_DATE,'DDMONYY') AS startdate, 
+			TO_CHAR(A.END_DATE,'DDMONYY') AS enddate, 
+			TO_CHAR(A.START_DATE,'MM') AS startMonth, 
+			TO_CHAR(A.END_DATE,'MM') AS endMonth, 
+			TO_CHAR(A.END_DATE,'yyyy') AS year, 
+			A.SUN_FLG AS sunday, 
+			A.MON_FLG AS monday,
+			A.TUE_FLG AS tuesday, 
+			A.WED_FLG AS wednesday, 
+			A.THU_FLG AS thursday, 
+			A.FRI_FLG AS friday, 
+			A.SAT_FLG AS saturday,
+			B.DOC_LINE_NO AS doclineNo,
+			B.BRD_POINT AS boardingPt,
+			B.OFF_POINT AS offPt, 
+			CONCAT(SUBSTR(TRIM(TO_CHAR(COALESCE(B.SCH_ARR_TIME,0),'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(COALESCE(B.SCH_ARR_TIME,0),'0000')),3,4)) arrTime, 
+			CONCAT(SUBSTR(TRIM(TO_CHAR(COALESCE(B.SCH_DEP_TIME,0),'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(COALESCE(B.SCH_DEP_TIME,0),'0000')),3,4)) depTime,
+			B.ARR_DAY_CHANGE AS arrDayChange,
+			B.DEP_DAY_CHANGE AS depDayChange,
+			B.ACFT_TYPE AS aircraft,
+			A.SVC_TYPE AS svc			
+		FROM FLT_SCH A, FLT_SCH_LEG B WHERE A.CARR_CODE= upper(#carrierCode#) AND A.FLT_NO= #flightNo# 
+			AND A.START_DATE =  TO_DATE(#startdate#,'DDMONYY') 
+			AND A.END_DATE =  TO_DATE(#enddate#,'DDMONYY') AND
+			A.TR_NO = B.TR_NO AND
+			B.TR_NO = (#trno#) AND
+			B.DOC_LINE_NO = (#doclineNo#)
+	</select>
+
+	<select id="get_next_day" parameterClass="cargo.cms.flight.bo.JointFlightBO"   resultClass="java.lang.String" >
+		<![CDATA[
+	select to_char(NEXT_DAY(to_date(#querydate#,'DDMONYY'),#fetchDay#),'ddmonyy') 
+		where to_char(NEXT_DAY(to_date(#querydate#,'DDMONYY'),#fetchDay#),'ddmonyy')::date <= TO_DATE(#enddate#,'DDMONYY')
+		]]>
+	</select>
+	
+	<select id="get_joint_flight_no" parameterClass="cargo.cms.flight.bo.JointFlightBO" 
+	resultClass="cargo.cms.flight.bo.JointFlightBO" >
+		SELECT JNT_CAR_1 AS jointFltCarr1, JNT_FLT_1 AS jointFltNo1, JNT_CAR_2 AS jointFltCarr2, JNT_FLT_2 AS 		jointFltNo2,JNT_CAR_3 AS jointFltCarr3, JNT_FLT_3 AS jointFltNo3, JNT_CAR_4 AS jointFltCarr4, 			JNT_FLT_4 AS jointFltNo4, JNT_CAR_5 AS jointFltCarr5, JNT_FLT_5 AS jointFltNo5
+		FROM FLT_SCH_LEG_JNT 
+		WHERE TR_NO =#trno# AND DOC_LINE_NO =#doclineNo#  
+	</select>
+
+	<select id="get_existing_schedule"  parameterClass="cargo.cms.flight.bo.ScheduleBO" resultClass="java.lang.String" >
+		SELECT CONCAT(TO_CHAR(min(START_DATE),'DDMONYY'), TO_CHAR( max(END_DATE),'DDMONYY')) existingSchedules
+		FROM 
+			FLT_SCH
+		WHERE 
+			CARR_CODE = upper(#flightCarr#) 
+			AND FLT_NO = #flightNo# 			
+			 AND (		
+					(#mondayOne# = 'Y' AND FLT_SCH.MON_FLG = coalesce(#mondayOne#,FLT_SCH.MON_FLG))
+					OR (#tuesdayOne# = 'Y' AND FLT_SCH.TUE_FLG = coalesce(#tuesdayOne#,FLT_SCH.TUE_FLG))
+					OR (#wednesdayOne# = 'Y' AND FLT_SCH.WED_FLG = coalesce(#wednesdayOne#,FLT_SCH.WED_FLG))
+					OR (#thursdayOne# = 'Y' AND FLT_SCH.THU_FLG = coalesce(#thursdayOne#,FLT_SCH.THU_FLG))
+					OR (#fridayOne# = 'Y' AND FLT_SCH.FRI_FLG = coalesce(#fridayOne#,FLT_SCH.FRI_FLG))
+					OR (#saturdayOne# = 'Y' AND FLT_SCH.SAT_FLG = coalesce(#saturdayOne#,FLT_SCH.SAT_FLG))
+					OR (#sundayOne# = 'Y' AND FLT_SCH.SUN_FLG = coalesce(#sundayOne#,FLT_SCH.SUN_FLG))
+				  )
+		<isNotEmpty property="leg1TrNo">
+			AND  tr_no &lt;&gt; #leg1TrNo#
+		</isNotEmpty>
+		<isNotEmpty property="leg2TrNo">
+			AND  tr_no &lt;&gt; #leg2TrNo#
+		</isNotEmpty>
+		<isNotEmpty property="leg3TrNo">
+			AND  tr_no &lt;&gt; #leg3TrNo#
+		</isNotEmpty>
+		<isNotEmpty property="leg4TrNo">
+			AND  tr_no &lt;&gt; #leg4TrNo#
+		</isNotEmpty>
+		<isNotEmpty property="leg5TrNo">
+			AND  tr_no &lt;&gt; #leg5TrNo#
+		</isNotEmpty>
+		<isNotEmpty property="leg6TrNo">
+			AND  tr_no &lt;&gt; #leg6TrNo#
+		</isNotEmpty>
+		<isNotEmpty property="leg7TrNo">
+			AND  tr_no &lt;&gt; #leg7TrNo#
+		</isNotEmpty>
+      AND
+      ((#startDate#  between START_DATE and END_DATE) 
+      OR (#endDate#  between START_DATE and END_DATE) 
+      OR (#startDate# &lt;= END_DATE  AND #endDate# &gt;= START_DATE))
+  	</select>
+  	
+  	<select id="check_existing_schedule"  parameterClass="map" resultClass="java.lang.String" >
+		SELECT public.pkg_schedule_flight__CHECK_FLT_SCHEDULE(#P_FLT_KEY#,#P_START_DATE#,#P_END_DATE#,#P_TR_NO#,#DAYS#)  
+ </select>
+
+	<insert id="insert_joint_flight"  parameterClass="cargo.cms.flight.bo.JointFlightBO">
+	INSERT INTO FLT_SCH_LEG_JNT (TR_NO,LDOC_LINE_NO,DOC_LINE_NO,CARR_CODE,FLT_NO,FLT_KEY,START_DATE,END_DATE,
+		FRQ_NO,LEG_ORDER,BRD_POINT,OFF_POINT,JNT_FLT_DATE,JNT_CAR_1,JNT_FLT_1,JNT_CAR_2,JNT_FLT_2,
+		JNT_CAR_3,JNT_FLT_3,JNT_CAR_4,JNT_FLT_4,JNT_CAR_5,JNT_FLT_5,JNT_CAR_6,JNT_FLT_6) 
+	VALUES(#trno#,#ldocLineno#,#doclineNo#,#carrierCode#,#flightNo#,#flightKey#,
+		TO_DATE(#startdate#,'DDMONYY'),TO_DATE(#enddate#,'DDMONYY'),
+		#freqNo#,#legOrder#,#boardingPt#,#offPt#,
+		TO_DATE(#jntFltDate#,'DDMONYY'),UPPER(#jointFltCarr1#),#jointFltNo1#,UPPER(#jointFltCarr2#),
+		#jointFltNo2#,
+		UPPER(#jointFltCarr3#),#jointFltNo3#,
+		UPPER(#jointFltCarr4#),#jointFltNo4#,
+		UPPER(#jointFltCarr5#),#jointFltNo5#,
+		UPPER(#jointFltCarr6#),#jointFltNo6#) 
+	</insert>
+
+	<select id="get_joint_date" parameterClass="cargo.cms.flight.bo.JointFlightBO" 
+	resultClass="cargo.cms.flight.bo.DayBO" >
+		SELECT TO_CHAR(JNT_FLT_DATE,'DDMONYY') AS dat,TO_CHAR(JNT_FLT_DATE,'DD') AS day, 
+			TO_CHAR(JNT_FLT_DATE,'MONTH') AS mon,TO_CHAR(JNT_FLT_DATE,'YY') AS yr  
+		FROM FLT_SCH_LEG_JNT 
+		WHERE TR_NO =#trno# AND DOC_LINE_NO =#doclineNo# ORDER BY JNT_FLT_DATE 
+	</select>
+
+	<update id="joint_flight_update" parameterClass="cargo.cms.flight.bo.JointFlightBO">
+		UPDATE FLT_SCH_LEG_JNT SET JNT_CAR_1 = upper(#jointFltCarr1#), JNT_FLT_1 = #jointFltNo1#, 
+			JNT_CAR_2 = upper(#jointFltCarr2#), JNT_FLT_2 = #jointFltNo2#,
+	   		JNT_CAR_3 = upper(#jointFltCarr3#), JNT_FLT_3 = #jointFltNo3#, 
+			JNT_CAR_4 = upper(#jointFltCarr4#), JNT_FLT_4 = #jointFltNo4#,
+	   		JNT_CAR_5 = upper(#jointFltCarr5#), JNT_FLT_5 = #jointFltNo5#
+		WHERE TR_NO =#trno# AND DOC_LINE_NO =#doclineNo# AND JNT_FLT_DATE = TO_DATE(#jntFltDate#,'DDMONYY')
+	</update>
+
+	<delete id="joint_flight_delete" parameterClass="cargo.cms.flight.bo.JointFlightBO" >
+		DELETE FROM 	FLT_SCH_LEG_JNT
+		WHERE TR_NO =#trno# AND DOC_LINE_NO =#doclineNo# AND JNT_FLT_DATE = TO_DATE(#jntFltDate#,'DDMONYY')
+	</delete>
+	<select id="get_joint_flight"  parameterClass="cargo.cms.flight.bo.JointFlightBO"  resultClass="cargo.cms.flight.bo.JointFlightBO">
+		SELECT A.TR_NO AS trno,
+			A.CARR_CODE AS carrierCode,
+			A.FLT_NO AS flightNo,
+			A.FLT_KEY AS flightKey,
+			TO_CHAR(A.START_DATE,'DDMONYY') AS startdate, 
+			TO_CHAR(A.END_DATE,'DDMONYY') AS enddate, 
+			TO_CHAR(A.START_DATE,'MONTH') AS startMonth, 
+			TO_CHAR(A.END_DATE,'MONTH') AS endMonth, 
+			TO_CHAR(A.END_DATE,'yyyy') AS year, 
+			A.SUN_FLG AS sunday, 
+			A.MON_FLG AS monday,
+			A.TUE_FLG AS tuesday, 
+			A.WED_FLG AS wednesday, 
+			A.THU_FLG AS thursday, 
+			A.FRI_FLG AS friday, 
+			A.SAT_FLG AS saturday,
+			B.DOC_LINE_NO AS doclineNo,
+			B.BRD_POINT AS boardingPt,
+			B.OFF_POINT AS offPt, 
+			CONCAT(SUBSTR(TRIM(TO_CHAR(COALESCE(B.SCH_ARR_TIME,0),'0000')),0,2), ':',  SUBSTR(TRIM(TO_CHAR(COALESCE(B.SCH_ARR_TIME,0),'0000')),3,4)) arrTime, 
+			CONCAT(SUBSTR(TRIM(TO_CHAR(COALESCE(B.SCH_DEP_TIME,0),'0000')),0,2), ':',  SUBSTR(TRIM(TO_CHAR(COALESCE(B.SCH_DEP_TIME,0),'0000')),3,4)) depTime,
+			B.ARR_DAY_CHANGE AS arrDayChange,
+			B.DEP_DAY_CHANGE AS depDayChange,
+			B.ACFT_TYPE AS aircraft,
+			A.SVC_TYPE AS svc,
+			B.FRQ_NO AS freqNo,
+			B.LEG_ORDER AS legOrder,
+			  B.PROHIBIT_SHC1  AS prohibitedShc1,
+			  B.PROHIBIT_SHC2  AS prohibitedShc2,
+			  B.PROHIBIT_SHC3  AS prohibitedShc3,
+			  B.HSE_BU_IND AS houseBuconfig
+		FROM FLT_SCH A, FLT_SCH_LEG B WHERE A.CARR_CODE= upper(#carrierCode#) AND A.FLT_NO= #flightNo# 
+			AND A.START_DATE =  TO_DATE(#startdate#,'DDMONYY') 
+			AND A.END_DATE =  TO_DATE(#enddate#,'DDMONYY') AND
+			A.TR_NO = B.TR_NO AND
+			B.TR_NO = (#trno#) AND
+			B.DOC_LINE_NO = (#doclineNo#)
+	</select>
+	<select id="flt_check_date"  parameterClass="cargo.cms.flight.bo.ScheduleBO" resultClass="java.lang.String" >
+		SELECT (TO_DATE(#startDate#,'DDMONYY') - CURRENT_TIMESTAMP(0)::date)::text DAYDIFF  
+ </select>
+
+ <select id="flt_check_end_date"  parameterClass="cargo.cms.flight.bo.ScheduleBO" resultClass="java.lang.String" >
+		SELECT (TO_DATE(#endDate#,'DDMONYY') - TO_DATE(#startDate#,'DD-MON-YY'))::text DAYDIFF  
+ </select>
+	
+ <select id="flt_check_date_range"  parameterClass="cargo.cms.flight.bo.ScheduleBO" resultClass="java.lang.String" >
+	SELECT CAST(ROUND(CAST(EXTRACT(EPOCH FROM (CAST(TO_DATE(#endDate#, 'DDMONYY') AS DATE) - (CAST(TO_DATE(#startDate#, 'DDMONYY') AS DATE) + (INTERVAL '1 month' * (SELECT CAST(RULE_VALUE AS INTEGER) FROM CMSRULES WHERE RULE_CODE='SCH_DURATION_FLT_SCHDULE' LIMIT 1)))))/86400 AS NUMERIC)) AS VARCHAR) AS DAYDIFF 
+ </select>
+ 
+	<select id="fetchSchDuration_flt"  parameterClass="cargo.cms.flight.bo.ScheduleBO" resultClass="java.lang.String" >
+		SELECT RULE_VALUE FROM CMSRULES WHERE RULE_CODE='SCH_DURATION_FLT_SCHDULE'
+		LIMIT 1
+	</select>
+
+	<select id="flt_check_joint_flight"  parameterClass="cargo.cms.flight.bo.ScheduleLegBO"  resultClass="java.lang.Integer">
+		SELECT COALESCE(COUNT(*),0) FROM FLT_SCH_LEG_JNT WHERE TR_NO=#trno# AND DOC_LINE_NO=#docLineNumber# 
+	</select>
+	<!-- added by haji on 12-05-06 start -->
+	<select id="aatCarrierHandler"  parameterClass="java.lang.Object" resultClass="cargo.cms.uld.bo.CarrierBO">
+		SELECT CODE AS carrCode, CODE_DESC AS carrName FROM MAST_CARRIER WHERE OWNED_CARR = 'Y' 
+		ORDER BY CODE
+	</select>
+	<!-- added by haji on 12-05-06 end -->
+	<!-- added by haji ends -->
+	<!-- added by Sumathi for validation starts-->
+	<select id="validationCarrHandler"  parameterClass="java.lang.Object" resultClass="cargo.cms.uld.bo.CarrierBO">
+		SELECT CODE AS carrCode, CODE_DESC AS carrName FROM MAST_CARRIER  
+		ORDER BY CODE
+	</select>
+	<!-- validation query ends -->
+	<parameterMap id="hmap" class="map" >
+		<parameter property="FROMDATE" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+		<parameter property="TODATE" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+	</parameterMap>
+
+	<procedure id="callPkgFltImp" parameterMap="hmap" >
+		{call public.PKG_FLT__FLT_MONITORING_IMP(?,?)}
+	</procedure>
+	
+	<parameterMap id="hmap" class="map" >
+		<parameter property="FROMDATE" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+		<parameter property="TODATE" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+	</parameterMap>
+
+	<procedure id="callPkgFltExp" parameterMap="hmap" >	
+		{call public.PKG_FLT__FLT_MONITORING_EXP(?,?)}
+	</procedure>
+	
+
+	<select id="FLT_fetchFlightMonitoringListEXP"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="cargo.cms.flight.bo.FlightBO">
+		select  b.TR_NO txnNo , a.CARR_CODE flightCarr, a.FLT_NO flightNo, a.FLT_KEY flightKey, TO_CHAR(FLT_DATE,'DDMONYY') schDate, lpad(CAST(a.SCH_TIME AS TEXT), 4,'0') hrAndMinSch, lpad(CAST(a.EST_TIME AS TEXT), 4,'0') hrAndMinEst, lpad(CAST(a.ACT_TIME AS TEXT), 4,'0') hrAndMinAct, FBL_T fbl, 
+		RCS_T rcs, PRE_MAN_T preMan, N_BLDUP notBuildUp, lpad(BLDUP_COM_TIME::text, 4,'0') buildUpCompletionTime, CHK_ULD checkedOut, 
+		lpad(FLT_CLS::text, 4,'0') fltCloserTime, lpad(DLS::text, 4,'0') dlsTime, OFLD_IND ofldFlag, lpad(CAST(FFM AS TEXT), 4,'0')  ffmTime, FSU fsu, FWB fwb, FHL fhl, SVC_ACH handler, TON_KG ton
+		from GT_FLT_MONITORING_EXP a, FLT_OPR b
+		<dynamic prepend="WHERE" > 		
+		a.Flt_Key = b.Flt_Key and a.Flt_DATE = b.sch_DATE
+		and b.FLT_TYPE = 'D'
+		<isNotEmpty property="flightKey">
+			AND	a.FLT_KEY = #flightKey# 
+		</isNotEmpty>
+		<isNotEmpty property="flightNo">
+			AND a.FLT_NO = #flightNo# 
+		</isNotEmpty>
+		<isNotEmpty property="flightCarr">
+			AND a.CARR_CODE = #flightCarr# 
+		</isNotEmpty>		
+		<isNotEmpty property="loginCarrier">
+			AND a.CARR_CODE = #loginCarrier# 
+		</isNotEmpty>
+		</dynamic>
+		Order BY a.FLT_DATE , to_char(a.SCH_TIME, '0000')
+	</select>
+			
+	<select id="FLT_fetchFlightMonitoringListIMP"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="cargo.cms.flight.bo.FlightBO">
+		select b.TR_NO txnNo , b.CARR_CODE flightCarr, b.FLT_NO flightNo, b.FLT_KEY flightKey, TO_CHAR(FLT_DATE,'DDMONYY') schDate,  lpad(b.SCH_TIME::text, 4,'0') hrAndMinSch,  lpad(b.EST_TIME::text, 4,'0') hrAndMinEst, lpad(b.ACT_TIME::text, 4,'0') hrAndMinAct, FFM_T ffmCount, 
+		FHL_T fhlCount, ULD_ACC uldCount, lpad(RAMP_COMPL_TIME::text, 4,'0') rampCompletionTime, CAR_T carCount, FLT_CLR flightCloserFlag, 
+		LEFT_BEH lbFlag, lpad(DOC_COMPL_TIME::text, 4,'0') docCompletionTime, DOC_IRR_T dir, lpad(BDS_XPS::text, 4,'0') xpsTime, lpad(CAST(BDS_PER AS TEXT), 4,'0')  perTime, lpad(BDS_GEN::text, 4,'0') gen, 
+		CGO_IRR_T cirCount, DAM_T dam, lpad(FLT_CLS::text, 4,'0') fltCloserTime, SRF_TRM_T srf, TON_KG ton
+		from GT_FLT_MONITORING_IMP  a, FLT_OPR b
+		<dynamic prepend="WHERE" > 
+		a.Flt_Key = b.Flt_Key and a.Flt_DATE = b.sch_DATE
+		and b.FLT_TYPE = 'A' 		
+		<isNotEmpty property="flightKey">
+			AND a.FLT_KEY = #flightKey# 
+		</isNotEmpty>
+		<isNotEmpty property="flightKey">
+			AND a.FLT_KEY = #flightKey# 
+		</isNotEmpty>
+		<isNotEmpty property="flightNo">
+			AND a.FLT_NO = #flightNo# 
+		</isNotEmpty>
+		<isNotEmpty property="flightCarr">
+			AND a.CARR_CODE = #flightCarr# 
+		</isNotEmpty>		
+		<isNotEmpty  property="loginCarrier">
+			AND a.CARR_CODE = #loginCarrier# 
+		</isNotEmpty>
+		</dynamic>
+		Order BY a.FLT_DATE , to_char(a.SCH_TIME, '0000')
+	</select>
+
+<select id="flightMonitorDate" parameterClass="java.lang.String" resultClass="cargo.cms.flight.bo.FlightBO">
+	select TO_CHAR(CURRENT_TIMESTAMP(0) - (8/24),'DDMONYY') schDate , TO_CHAR(CURRENT_TIMESTAMP(0) - (8/24),'HH24') schTimeHr, TO_CHAR(CURRENT_TIMESTAMP(0) - (8/24),'MI') schTimeMin,  TO_CHAR(CURRENT_TIMESTAMP(0) + (8/24),'DDMONYY') schDateTo,  TO_CHAR(CURRENT_TIMESTAMP(0) + (8/24),'HH24') schTimeHrTo ,   TO_CHAR(CURRENT_TIMESTAMP(0) + (8/24),'MI') schTimeMinTo  
+ </select>
+
+<parameterMap id="hmap" class="map" >
+	<parameter property="TRNO" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+</parameterMap>
+<procedure id="pkg_schedule_flight_createdailyflight" parameterMap="hmap" >
+	{ call public.pkg_schedule_flight__createdailyflight(?) }
+</procedure>
+
+<parameterMap id="hmap" class="map" >
+	<parameter property="TRNO" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+	<parameter property="FLTKEY" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+</parameterMap>
+<procedure id="pkg_schedule_flight_deletedailyflight" parameterMap="hmap" >
+	{ call public.pkg_schedule_flight__deletedailyflight(?,?) }
+</procedure>
+
+<select id="get_TrNo_flt_sch" parameterClass="cargo.cms.flight.bo.ScheduleBO" resultClass="java.lang.String">
+	SELECT  TR_NO 
+	FROM FLT_SCH 
+	WHERE CARR_CODE = upper(#flightCarr#)
+	and FLT_NO = upper(#flightNo#) 
+	and START_DATE =TO_DATE(#startDate#,'DDMONYY') 
+	and END_DATE = TO_DATE(#endDate#,'DDMONYY') 
+	and FRQ_NO = #frqNumber:NUMERIC# and mon_flg=#monday# and tue_flg=#tuesday# and wed_flg=#wednesday# and thu_flg=#thursday# and fri_flg=#friday# and sat_flg=#saturday# and sun_flg=#sunday#
+	AND cr_user_id not in ('SSMCNL', 'SSMCNLNEW')
+</select>
+
+<select id="get_FrqNo_flt_sch" parameterClass="java.lang.String" resultClass="java.lang.String">
+	SELECT  coalesce(max(FRQ_NO),0)
+	FROM FLT_SCH_LEG 
+	WHERE TR_NO  = upper(#trNo#)	
+</select>
+
+<select id="hht_FLT_fetchDailyFlightList"  parameterClass="map"  resultClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+		SELECT 	 CAST(OPR.TR_NO AS TEXT) txnNo, OPR.FLT_KEY flightKey, OPR.CARR_CODE flightCarr, OPR.FLT_NO flightNo, TO_CHAR(OPR.SCH_DATE,'DDMONYY') schDate, TO_CHAR(OPR.EST_DATE,'DD') estDate,
+		TO_CHAR(OPR.ACT_DATE,'DD') actDate,
+					rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),3,4)), ':') hrAndMinSch,
+					rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.EST_TIME,'0000')),3,4)), ':') hrAndMinEst,
+					rtrim(CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),1,2), ':',  SUBSTR(TRIM(TO_CHAR(OPR.ACT_TIME,'0000')),3,4)), ':') hrAndMinAct,
+					OPR.FLT_TYPE flightType, CASE OPR.FLT_TYPE WHEN 'A' THEN ORIG WHEN 'D' THEN DEST ELSE ORIG END fromLoc,
+					(SELECT CODE_DESC FROM MAST_CODE_DTL WHERE CODE =OPR.CGO_ACFT_TYPE AND CODE_TYPE='CGO_ACFT_TYPE')	cargoArcftType,
+					(SELECT CODE_DESC FROM MAST_ACFT_TYPE WHERE CODE =OPR.ACFT_TYPE) airCraftType, 
+					OPR.ACFT_REG_NO arcftRegionNo, 
+					(SELECT CODE_DESC FROM MAST_CODE_DTL WHERE CODE =OPR.STATUS AND CODE_TYPE='FLT_STATUS')	arrDepStatus,
+					OPR.SCH_GATE gate,OPR.ACFT_PRK_BAY bay, WTHR_COND weather,
+					OPR.RMK remarks, 
+					CASE OPR.FLT_TYPE WHEN 'A' THEN COALESCE((SELECT 'Y' FROM EDI_FFM_MSG WHERE FLT_KEY = OPR.FLT_KEY AND FLT_DATE = OPR.SCH_DATE AND FFM_STATUS = 'P'
+LIMIT 1), 'N') WHEN 'D' THEN EVENT.DLS_IND END as ffmInd,
+					public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,OPR.FLT_TYPE,'DD') AS ata,
+					public.PKG_COMMON__GET_FLT_ETA(OPR.FLT_KEY,OPR.SCH_DATE,OPR.FLT_TYPE,'DD') AS eta
+			FROM	FLT_OPR OPR, FLT_OPR_EVENTS EVENT
+			WHERE	OPR.FLT_TYPE = #FLT_TYPE#
+			AND		OPR.FLT_KEY LIKE UPPER(#FLT_KEY#)			
+			AND OPR.SCH_DATE BETWEEN      
+			TO_DATE(CAST(#SCH_DATE_FROM# AS TEXT),'DDMONYY') AND      			
+			TO_DATE(CAST(#SCH_DATE_TO# AS TEXT),'DDMONYY')
+			AND		OPR.TR_NO = EVENT.TR_NO	
+	]]>
+	
+</select>
+
+
+
+
+<select id="FLT_Handover_Monitoring_List"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="cargo.cms.flight.bo.FlightBO">
+	<![CDATA[
+	
+		Select t.flt_key  flightKey,t.carr_code  flightCarr, to_char(t.sch_date,'DDMONYY') schDate, lpad(CAST(t.SCH_TIME AS TEXT), 4, '0') sta, lpad(CAST(t.EST_TIME AS TEXT), 4, '0') eta, 
+		lpad(CAST(t.ACT_TIME AS TEXT), 4, '0') ata, public.PKG_IMP__get_ULD_Allot(t.flt_key, t.sch_date, 'I') ttlAllot, 
+		public.PKG_IMP__get_ULD_Allot(t.flt_key, t.sch_date, 'A') updatedAllot, r.CHKIN_COMPLETE checkInStatus,
+		t.WH_LEVEL airsideLevel, '' flightStatus, t.RHO_ID rhoUser , cr.code_desc fromId
+		from flt_opr t		
+		left join cust_company cr on cr.code = t.RHO_ID
+		join IMP_RAMP_CHK_HD r on r.flt_key = t.flt_key and r.flt_date = t.sch_date
+		where t.flt_type = 'A' and sch_date between #schDate# and #schDateTo#
+		and t.carr_code = coalesce(#flightCarr#, t.carr_code)
+		and t.flt_no = coalesce(#flightNo#, t.flt_no) 
+		and coalesce(t.RHO_ID, '*') = coalesce(#custCode#, coalesce(t.RHO_ID, '*'))
+		and r.CHKIN_COMPLETE = coalesce(#checkInStatus#, r.CHKIN_COMPLETE)
+		and exists (select null from IMP_RAMP_INB_CHK_DTL 
+		where flt_key = t.flt_key and flt_date = t.sch_date)
+		
+	]]>
+</select>
+
+<select id="FLT_list_print_Handover_form"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="cargo.cms.flight.bo.FlightCheckInBO">
+	select r.uld_key uldKey , coalesce(ag.ULD_ALLOT, 'BT') uldType, 
+	case when length(r.uld_key) > 8 then null else coalesce((select sum(STRG_WT) from imp_awb_strg_dtl 
+	where CHKIN_ULD_KEY = r.uld_key and flt_key = r.flt_key and flt_date = r.flt_date), 0) end wt,
+	coalesce((select CHKIN_YN from IMP_RAMP_CHK_DTL where ULD_KEY = r.uld_key and flt_key = r.flt_key and flt_date = r.flt_date), 'N') checkInStatus , #airsideLevel# airsideLevel
+	from IMP_RAMP_INB_CHK_DTL r
+	left join ULD_Group_Type gt on gt.ULD_TYPE = r.ULD_TYPE and length(r.uld_key) > 8
+	left join MAST_ULD_ALLOT_GROUP ag on ag.ULD_GROUP = gt.ULD_GROUP
+	where flt_key = #flightKey# and flt_date = to_date(#schDate#,'DDMONYY')
+</select>
+
+<insert id="InsertIntoImpMisf" parameterClass="cargo.cms.flight.bo.FlightCheckInBO">
+	INSERT INTO IMP_MIFS ( MIFS_NO, RHO_ID, FLT_KEY, FLT_DATE, ULD_KEY, CR_DATE,CR_USER_ID ) 
+	VALUES 
+	( #mifsNo#, #rhoId#, #fltKey#,  TO_Date( to_date(#fltDate#,'DDMONYY'), 'DDMONYY'), #uldKey#, current_timestamp(0), #userId#)
+</insert>
+
+<select id="getMaxLegOrder" parameterClass="java.lang.String" resultClass="java.lang.String">
+	SELECT  coalesce(max(leg_order),0)+1
+	FROM FLT_SCH_LEG 
+	WHERE TR_NO  = upper(#trNo#)	
+</select>
+<!-- ADDED 02JUN10 -->
+   	<select id="FLT_Date_Time_Comparision"  parameterClass="map"  resultClass="java.lang.String">
+	<![CDATA[
+		SELECT (TO_DATE(#endDate#,'DDMONYY HH24:MI') - TO_DATE(#startDate#,'DDMONYY HH24:MI'))::text DAYDIFF 
+        ]]>
+   	</select> 	
+
+<select id="FLT_fetch_arrival_flight"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.String">
+SELECT CAST(COUNT(*) AS TEXT) FROM flt_opr where flt_type = 'A' and sch_date = TO_DATE( #schDate#, 'DDMONYY') and flt_key = #flightKey#
+</select>
+<select id = "FLT_Fetch_arr_flt_data" parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="cargo.cms.flight.bo.FlightLegBO">
+SELECT TO_CHAR(max(sch_arr_date),'DDMONYY') as schArrDate,max(SUBSTR(TRIM(TO_CHAR(COALESCE(SCH_ARR_TIME,0),'0000')),0,2)) AS schArrTimeHr,
+max(SUBSTR(TRIM(TO_CHAR(COALESCE(sch_arr_time,0),'0000')),3,4)) AS schArrTimeMin
+FROM flt_opr_leg where flt_type = 'A' and sch_date = TO_DATE( #schDate#, 'DDMONYY') and flt_key = #flightKey#
+</select>	
+
+   	<select id="checkLegDateTime"  parameterClass="map"  resultClass="java.lang.Double">
+	<![CDATA[
+		select to_date(#toTime#,'HH24MI') - to_date(#fromTime#,'HH24MI') 
+        ]]>
+   	</select> 	
+   	<select id="validateSchdFlight"  parameterClass="cargo.cms.flight.bo.ScheduleBO"  resultClass="java.lang.Integer">
+		select count(*) from FLT_OPR where flt_key=#flightKey# and TO_CHAR(SCH_DATE,'DDMONYY')::date BETWEEN 
+		TO_DATE(#startDate#,'DDMONYY') AND TO_DATE(#endDate#,'DDMONYY') AND TO_CHAR(SCH_DATE,'DDMONYY') = TO_CHAR(current_timestamp(0),'DDMONYY')
+	</select>
+	
+<!-- Flight monitor start -->
+	<!-- Flight monitor start -->
+	
+	<parameterMap id="impDocListMap" class="map" >
+            <parameter property="v_from_date"  jdbcType="VARCHAR" javaType="java.lang.String"   mode="IN"/>
+            <parameter property="v_to_date" jdbcType="VARCHAR" javaType="java.lang.String"   mode="IN"/>
+            <parameter property="p_ffm_cut_off" jdbcType="VARCHAR" javaType="java.lang.String"  mode="IN"/>
+            <parameter property="p_ddt_cut_off" jdbcType="VARCHAR" javaType="java.lang.String"  mode="IN"/>
+            <parameter property="v_module" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_acft_type" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_usage" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_flt_key" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+	        <parameter property="v_rho" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+	</parameterMap>
+	  <procedure id="prcimpDocList" parameterMap="impDocListMap">
+            { call prc_flt_monitoring_doc(?,?,?,?,?,?,?,?,?)  }
+      </procedure>
+      <select id="impDocList" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ImpMonitorBO">
+	       SELECT  FLT_KEY fltNoDisp,            
+				   TR_NO txnNo,
+				   CARR_CODE flightCarr,
+				   FLT_NO flightNo,
+				   SCH_DATE	schDate,
+				   STA sta,
+				   ATA ata,            
+				   ACFT_TYPE acftType,
+			       USAGE usage,
+			       MODULE module,
+				   MODULE2 module2,
+          		   FFM 	ffm,
+				   DDT ddt,
+				   FHL fhl ,
+	               CED ced,
+				   CAR car,
+				   PERC perc,
+				   SSR ssr,
+				   IMR imr,
+				   IMX imx,
+				   BKG bkg,
+				   FLT_CLR fltClr,
+				   BRKDN brkDwn,   
+				   CHK_IN chkIn,
+				   FLT_CLOSE fltClose,
+				   DDM_FMT ddtFmt,          
+				   EST_TIME estimateDate,
+				   SCH_TIME scheduleDate,
+				   SHC shc ,
+				   FFM_FMT ffmFmt,
+				   COLOR_1 chkInClr,
+				   COLOR_2 bdClr,
+				   RHO rhoUser,
+				   (select code_desc from CUST_COMPANY where  CODE=RHO) AS rhoUserName  
+				   FROM GT_FLT_MONITOR OPR
+				WHERE 1=1   
+			<isEmpty property="fltKey">
+		    	<isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+            	</isNotEmpty>
+            </isEmpty>
+            <isEqual property="outstandingYN" compareValue="Y" prepend="AND">
+     			OPR.STATUS !='X' and ( OPR.FLT_CLOSE='N' or (public.PKG_COMMON__GET_FLT_ATA((substr(OPR.FLT_KEY,1,length(OPR.FLT_KEY)-8)),cast(OPR.SCH_DATE AS DATE),'A','DD')) IS NULL )
+     		</isEqual>
+     		<isNotEmpty property="groupCarrList">
+	            AND   (OPR.CARR_CODE = #groupCarrList# 
+	            OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+	            WHERE GRP_CARR_CODE     = #groupCarrList#))                                          
+	        </isNotEmpty>
+	      	<isNotEmpty property="carrList">
+	            AND   OPR.CARR_CODE = #carrList# 
+	     	</isNotEmpty>
+          ORDER BY COALESCE(EST_DATE,SCH_DATE), COALESCE(EST_TIME,SCH_TIME)
+	</select>
+      
+	<!--<select id="impDocList" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ImpMonitorBO">
+		SELECT  CONCAT(OPR.FLT_KEY ,'/',TO_CHAR(OPR.SCH_DATE,'DDMONYY')) AS fltNoDisp,            
+                  OPR.TR_NO AS txnNo,    OPR.CARR_CODE flightCarr, OPR.FLT_NO flightNo,
+		  TO_CHAR(OPR.SCH_DATE,'DDMONYY') schDate,
+            CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),0,2) , ':' ,SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),3,4))  AS sta,
+            CASE  WHEN public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,'A') IS NULL THEN public.PKG_COMMON__get_flt_eta(OPR.FLT_KEY,OPR.SCH_DATE,'A') ELSE
+            Concat('*',public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,'A')) END AS ata,            
+            OPR.ACFT_TYPE AS acftType,OPR.CGO_ACFT_TYPE AS usage,OPR.FLT_MODULE1 as module,OPR.FLT_MODULE2 as module2,            
+            
+            (SELECT CONCAT(COUNT(case when ffm_flg='Y' then 1 else null end) , '/' , COUNT(CAR_SHP.AWB_NO)) 
+            FROM IMP_CAR_SHP CAR_SHP 
+            WHERE CAR_SHP.FLT_DATE = OPR.SCH_DATE AND CAR_SHP.FLT_KEY=OPR.FLT_KEY)  AS ffm,
+            
+            (SELECT COUNT(case when coalesce(ds.AWB_NO, '*') &lt;&gt; '*' then 1 else null end) || Concat('/' , COUNT(s.AWB_NO)) 
+            FROM IMP_CAR_SHP s 
+            JOIN IMP_CAR_AWB a ON s.AWB_NO = a.AWB_NO  AND  s.AWB_DATE = a.AWB_DATE 
+            left join DDT_MSG dm on dm.FLT_KEY = s.FLT_KEY and  dm.FLT_DATE = s.FLT_DATE 
+            left join DDT_SHP ds ON dm.tr_no = ds.tr_no and ds.AWB_NO = s.AWB_NO AND ds.AWB_DATE = s.AWB_DATE 
+            WHERE s.FLT_DATE = OPR.SCH_DATE AND s.FLT_KEY = OPR.FLT_KEY AND a.AWB_DEST != 'HKG' ) AS ddt,
+                    
+            (SELECT CONCAT(COUNT(case when coalesce(fCount, 0) > 0 then 1 else null end) , '/' , COUNT(a.AWB_NO)) 
+            FROM IMP_CAR_AWB a 
+            JOIN IMP_CAR_SHP s ON s.AWB_NO = a.AWB_NO  AND s.AWB_DATE = a.AWB_DATE 
+            left join (select awb_no, awb_date, count(1) fCount from edi_fhl group by awb_no, awb_date) f on f.AWB_NO = a.AWB_NO  AND f.AWB_DATE = a.AWB_DATE 
+            WHERE s.FLT_DATE = OPR.SCH_DATE AND s.FLT_KEY = OPR.FLT_KEY AND a.CONSOLE_IND = 'Y') AS fhl,
+            
+            (SELECT COUNT(case when coalesce(mcc.code, '*') &lt;&gt; '*' then 1 else null end) || Concat('/' , COUNT(s.AWB_NO)) 
+            FROM IMP_CAR_SHP s 
+            left join V_CST_IMP_CC_CODE_AWB cc on cc.FLT_KEY = s.FLT_KEY AND cc.FLT_DATE = s.flt_DATE and cc.awb_no = s.awb_no
+            left join mast_constraint_code mcc on mcc.code = cc.cc_code
+            WHERE s.FLT_DATE = OPR.SCH_DATE AND s.FLT_KEY = OPR.FLT_KEY) AS ced,
+            
+            (SELECT CONCAT(COUNT(case when CAR_CREATED='Y' then 1 else null end) , '/' , COUNT(CAR_SHP.AWB_NO)) 
+            FROM IMP_CAR_SHP CAR_SHP 
+            WHERE CAR_SHP.FLT_DATE = OPR.SCH_DATE AND CAR_SHP.FLT_KEY=OPR.FLT_KEY)  AS car,
+            
+            (SELECT concat(round(COUNT(case when CAR_CREATED='Y' then 1 else null end) / case when COUNT(CAR_SHP.AWB_NO) = 0 then 1 else COUNT(CAR_SHP.AWB_NO) end * 100, 2) , '%') 
+            FROM IMP_CAR_SHP CAR_SHP 
+            WHERE CAR_SHP.FLT_DATE = OPR.SCH_DATE AND CAR_SHP.FLT_KEY=OPR.FLT_KEY)  AS perc,
+
+            (SELECT CONCAT(COALESCE(round(sum(coalesce(relwt, 0))/1000, 2),0) ,'/', COALESCE(round(sum(manifest_wt)/1000, 2),0))
+            FROM IMP_CAR_SHP s 
+            JOIN IMP_CAR_AWB a ON s.AWB_NO = a.AWB_NO  AND s.AWB_DATE = a.AWB_DATE 
+            left join (SELECT SF.AWB_NO, SF.AWB_DATE, SF.FLT_KEY, SF.FLT_DATE, SUM(SF.DLV_PCS) RELPCS, SUM(DLV_WT) RELWT
+               FROM IMP_SRF SR 
+               join IMP_SRF_FLT SF ON SR.SRF_NO = SF.SRF_NO
+               WHERE ((SR.SRF_EXPY_DATE > current_timestamp(0) and SR.STATUS ='ISSUED') or SR.STATUS ='POSTED' or
+				       SR.SRF_NO IN (SELECT SRF_NO FROM IMP_CDIF WHERE VOID_DATE IS NULL))    
+              GROUP BY SF.AWB_NO, SF.AWB_DATE, SF.FLT_KEY, SF.FLT_DATE) ISRF 
+              ON ISRF.AWB_NO = s.AWB_NO AND ISRF.AWB_DATE = s.AWB_DATE AND ISRF.FLT_KEY = s.FLT_KEY AND ISRF.FLT_DATE = s.FLT_DATE
+            WHERE s.FLT_DATE = OPR.SCH_DATE AND s.FLT_KEY=OPR.FLT_KEY 
+            and exists (select null from mast_spl_hand_code where SSR = 'Y' 
+                and code in (a.SPL_CODE1,a.SPL_CODE2,a.SPL_CODE3,a.SPL_CODE4,a.SPL_CODE5,a.SPL_CODE6,a.SPL_CODE7,a.SPL_CODE8,a.SPL_CODE9)))  AS ssr,
+
+            (SELECT CONCAT(COALESCE(round(sum(coalesce(relwt, 0))/1000, 2),0) ,'/', COALESCE(round(sum(manifest_wt)/1000, 2),0))
+            FROM IMP_CAR_SHP s 
+            JOIN IMP_CAR_AWB a ON s.AWB_NO = a.AWB_NO  AND s.AWB_DATE = a.AWB_DATE 
+            left join (SELECT SF.AWB_NO, SF.AWB_DATE, SF.FLT_KEY, SF.FLT_DATE, SUM(SF.DLV_PCS) RELPCS, SUM(DLV_WT) RELWT
+               FROM IMP_SRF SR 
+               join IMP_SRF_FLT SF ON SR.SRF_NO = SF.SRF_NO
+               WHERE ((SR.SRF_EXPY_DATE > current_timestamp(0) and SR.STATUS ='ISSUED') or SR.STATUS ='POSTED' or
+				       SR.SRF_NO IN (SELECT SRF_NO FROM IMP_CDIF WHERE VOID_DATE IS NULL))    
+              GROUP BY SF.AWB_NO, SF.AWB_DATE, SF.FLT_KEY, SF.FLT_DATE) ISRF 
+              ON ISRF.AWB_NO = s.AWB_NO AND ISRF.AWB_DATE = s.AWB_DATE AND ISRF.FLT_KEY = s.FLT_KEY AND ISRF.FLT_DATE = s.FLT_DATE
+            WHERE s.FLT_DATE = OPR.SCH_DATE AND s.FLT_KEY=OPR.FLT_KEY 
+            and exists (select null from mast_spl_hand_code where code = 'IMR' 
+                and code in (a.SPL_CODE1,a.SPL_CODE2,a.SPL_CODE3,a.SPL_CODE4,a.SPL_CODE5,a.SPL_CODE6,a.SPL_CODE7,a.SPL_CODE8,a.SPL_CODE9)))  AS imr,
+        
+            (SELECT concat(coalesce(round(sum(coalesce(relwt, 0))/1000, 2), 0) ,'/', coalesce(round(sum(s.manifest_wt)/1000, 2), 0))
+            FROM IMP_BOOKING_DTL b 
+            JOIN IMP_BOOKING h ON h.booking_no = b.booking_no 
+            join IMP_CAR_SHP s on s.AWB_NO = b.AWB_NO AND s.AWB_DATE = b.AWB_DATE AND s.FLT_KEY = b.FLT_KEY AND s.FLT_DATE = b.FLT_DATE
+            left join (SELECT SF.AWB_NO, SF.AWB_DATE, SF.FLT_KEY, SF.FLT_DATE, SUM(SF.DLV_PCS) RELPCS, SUM(DLV_WT) RELWT
+               FROM IMP_SRF SR 
+               join IMP_SRF_FLT SF ON SR.SRF_NO = SF.SRF_NO
+               WHERE ((SR.SRF_EXPY_DATE > current_timestamp(0) and SR.STATUS ='ISSUED') or SR.STATUS ='POSTED' or
+				       SR.SRF_NO IN (SELECT SRF_NO FROM IMP_CDIF WHERE VOID_DATE IS NULL))    
+              GROUP BY SF.AWB_NO, SF.AWB_DATE, SF.FLT_KEY, SF.FLT_DATE) ISRF 
+              ON ISRF.AWB_NO = s.AWB_NO AND ISRF.AWB_DATE = s.AWB_DATE AND ISRF.FLT_KEY = s.FLT_KEY AND ISRF.FLT_DATE = s.FLT_DATE
+            WHERE s.FLT_DATE = OPR.SCH_DATE AND s.FLT_KEY = OPR.FLT_KEY 
+            and to_date(concat(to_char(bkg_slot_date, 'DDMONYY'),' ',COALESCE(lpad(bkg_slot_from,4,0), '0000')), 'DDMONYY HH24MI')> current_timestamp(0))  AS bkg,
+        
+            (SELECT CASE COUNT(1) WHEN 0 THEN 'N' ELSE 'Y' END FROM CST_ACK WHERE CST_ACK.FLT_KEY=OPR.FLT_KEY AND CST_ACK.FLT_DATE = OPR.SCH_DATE AND ACK_REC_TYPE = 'CLR' AND FLT_TYPE = 'I') AS fltClr,
+            
+            (SELECT CASE COUNT(1) WHEN 0 THEN 'N' ELSE 'Y' END FROM FLT_OPR_EVENTS WHERE WHSE_COMPL_DATE IS NOT NULL AND FLT_KEY=OPR.FLT_KEY AND SCH_DATE = OPR.SCH_DATE) AS brkDwn,   
+            
+            (SELECT CASE COUNT(1) WHEN 0 THEN 'N' ELSE 'Y' END FROM FLT_OPR_EVENTS WHERE RAMP_COMPL_YN='Y'  AND FLT_KEY=OPR.FLT_KEY AND SCH_DATE = OPR.SCH_DATE AND FLT_TYPE = 'A') AS chkIn,
+              
+            (SELECT CASE COUNT(1) WHEN 0 THEN 'N' ELSE 'Y' END FROM FLT_OPR_EVENTS WHERE FLT_CLS_YN='Y'  AND FLT_KEY=OPR.FLT_KEY AND SCH_DATE = OPR.SCH_DATE AND FLT_TYPE = 'A') AS fltClose,
+            
+            (select case when a = 0 then '' else case when coalesce(x,0)  &gt; 0 then 'N' else 'Y' end end 
+            from (SELECT S.FLT_DATE , S.FLT_KEY,count(case when s.RECD_PCS &lt;&gt; s.MANIFEST_PCS then 1 else null end) x, count(1) a
+            FROM IMP_CAR_SHP s 
+            JOIN IMP_CAR_AWB a ON s.AWB_NO = a.AWB_NO  AND s.AWB_DATE = a.AWB_DATE 
+            where s.car_created = 'Y' and length(CONCAT(SPL_CODE1,SPL_CODE2,SPL_CODE3,SPL_CODE4,SPL_CODE5,SPL_CODE6,SPL_CODE7,SPL_CODE8,SPL_CODE9)) &gt; 0
+            GROUP BY S.FLT_DATE, S.FLT_KEY )shcTab where shcTab.FLT_DATE = OPR.SCH_DATE and shcTab.FLT_KEY= OPR.FLT_KEY) AS shc,
+            case when (( select cast(to_char(msg.cr_date,'HH24MI')+#ffmCutOff# as float) from edi_ffm_msg msg where msg.flt_key=OPR.FLT_KEY and msg.flt_date=OPR.SCH_DATE
+ limit 1)
+             >opr.EST_TIME)  then 'Y' else 'N' end as ffmFmt,case when (( select cast(to_char(msg.cr_date,'HH24MI')+#ddtCutOff# as float) from ddt_msg msg where msg.flt_key=OPR.FLT_KEY 
+             and msg.flt_date=OPR.SCH_DATE
+ limit 1)
+             >opr.EST_TIME)  then 'Y' else 'N' end as ddtFmt,          
+             CONCAT(TO_CHAR(OPR.EST_DATE,'YYYYMMDD'),LPAD(OPR.EST_TIME,4,'0')) AS estimateDate,
+             CONCAT(TO_CHAR(OPR.SCH_DATE,'YYYYMMDD'),LPAD(OPR.SCH_TIME,4,'0')) AS scheduleDate       
+            FROM FLT_OPR OPR, FLT_OPR_EVENTS EVENT 
+            WHERE OPR.TR_NO = EVENT.TR_NO AND OPR.FLT_TYPE='A' 
+            and  TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'), TO_CHAR(COALESCE(COALESCE(OPR.ACT_TIME,OPR.SCH_TIME),0),'0000')),'DDMONYYHH24MI')  &gt;= TO_DATE(#fltDtFr#,'DDMONYYHH24MI') 
+			and  TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'), TO_CHAR(COALESCE(COALESCE(OPR.ACT_TIME,OPR.SCH_TIME),0),'0000')),'DDMONYYHH24MI')  &lt;= TO_DATE(#fltDtTo#,'DDMONYYHH24MI')            
+            <isNotEmpty property="module">
+            AND (OPR.FLT_MODULE1=#module# OR OPR.FLT_MODULE2=#module#) 
+            </isNotEmpty>
+            <isNotEmpty property="acftType" >
+            AND OPR.ACFT_TYPE=#acftType#
+            </isNotEmpty>
+            <isNotEmpty property="usage" >
+            AND OPR.CGO_ACFT_TYPE=#usage#
+            </isNotEmpty>            
+            <isNotEmpty property="fltKey">
+            AND OPR.FLT_KEY=#fltKey#
+            </isNotEmpty>
+            <isEmpty property="fltKey">
+		    	<isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+            	</isNotEmpty>
+            </isEmpty>
+            <isEqual property="outstandingYN" compareValue="Y" prepend="AND">
+     			OPR.FLT_TYPE='A' AND EVENT.FLT_CLS_YN='N'
+     		</isEqual>
+		ORDER BY COALESCE(estimateDate, scheduleDate) ASC	
+	</select>
+	--><!-- <select id="impWhList" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ImpMonitorBO">
+		SELECT
+  CONCAT(OPR.FLT_KEY ,'/',TO_CHAR(OPR.SCH_DATE,'DDMONYY')) AS fltNoDisp,  OPR.CARR_CODE flightCarr, OPR.FLT_NO flightNo,
+  TO_CHAR(OPR.SCH_DATE,'DDMONYY') schDate,
+  CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),0,2) , ':' ,SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),3,4))  AS sta,
+  CASE  WHEN public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,'A') IS NULL THEN public.PKG_COMMON__get_flt_eta(OPR.FLT_KEY,OPR.SCH_DATE,'A') ELSE
+  Concat('*',public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,'A')) END AS ata,
+  OPR.ACFT_TYPE AS acftType,OPR.CGO_ACFT_TYPE AS usage,OPR.FLT_MODULE1 as module,OPR.FLT_MODULE2 as module2,  
+  CONCAT((SELECT COUNT(ULD_KEY) FROM IMP_RAMP_CHK_DTL WHERE OPR.FLT_KEY = FLT_KEY AND OPR.SCH_DATE = FLT_DATE)
+  , '/' ,
+  (SELECT COUNT(uld_key) FROM IMP_RAMP_INB_CHK_DTL WHERE OPR.FLT_KEY = FLT_KEY AND OPR.SCH_DATE = FLT_DATE AND (CPM_IND = 'Y' OR FFM_IND = 'Y'))
+  , '/' ,
+  coalesce((SELECT COALESCE(d.qty,0) + COALESCE(BULK_QTY,0) FROM IMP_CFM_ULD_TOWED h
+  left JOIN (select flt_key, flt_date, flt_type,
+             SUM(QTY) qty
+            from IMP_CFM_ULD_TOWED_DTL group by flt_key, flt_date, flt_type) d
+            on d.FLT_KEY = h.FLT_KEY AND d.FLT_DATE= h.FLT_DATE AND d.FLT_TYPE = h.FLT_TYPE
+                     WHERE OPR.FLT_KEY = h.FLT_KEY AND OPR.SCH_DATE= h.FLT_DATE
+                     AND OPR.FLT_TYPE = h.FLT_TYPE), 0)) AS total,
+                     
+  (SELECT CONCAT(COUNT(case when CHK_DTL.CHKIN_YN = 'Y' then 1 else null end) , '/' , COUNT(ULD.ULD_KEY)) 
+  FROM DDT_ULD ULD 
+  JOIN DDT_MSG MSG on msg.tr_no = uld.tr_no
+  LEFT JOIN IMP_RAMP_CHK_DTL CHK_DTL on CHK_DTL.FLT_KEY = MSG.FLT_KEY  AND CHK_DTL.FLT_DATE = MSG.FLT_DATE and CHK_DTL.uld_key = uld.uld_key
+  WHERE MSG.FLT_KEY = OPR.FLT_KEY  AND MSG.FLT_DATE = OPR.SCH_DATE AND ULD.TRF_TYPE = 'QT') AS qt,
+   CONCAT((SELECT COUNT(CHK_DTL.ULD_KEY) FROM IMP_RAMP_CHK_DTL CHK_DTL 
+                    JOIN IMP_RAMP_INB_CHK_DTL INB_CHK_DTL on CHK_DTL.tr_no = INB_CHK_DTL.tr_no and INB_CHK_DTL.uld_key = CHK_DTL.uld_key 
+                    WHERE OPR.FLT_KEY=CHK_DTL.FLT_KEY AND OPR.SCH_DATE=CHK_DTL.FLT_DATE 
+                    AND CHK_DTL.ULD_KEY NOT IN(SELECT ULD_KEY FROM ddt_uld DDT_ULD, ddt_msg DDT_MSG 
+                      WHERE DDT_MSG.tr_no= ddt_uld.tr_no AND ddt_msg.flt_key=OPR.FLT_KEY AND DDT_MSG.flt_date=OPR.SCH_DATE) 
+                      and not exists (select SHC from V_IMP_FLT_ULD_SHC V
+                                                join cust_airl_spl_code cc
+                                                on cc.spl_code=v.shc 
+                                                and cc.spl_type = 'SPL_PER'
+                                        where v.flt_key = opr.flt_key and v.flt_date = opr.sch_date and v.uld_key = CHK_DTL.uld_key
+                                        and cc.carr_code = opr.carr_code))
+                    , '/' ,
+                    (SELECT COUNT(ULD_KEY) FROM IMP_RAMP_INB_CHK_DTL T
+                    WHERE OPR.FLT_KEY=FLT_KEY AND OPR.SCH_DATE=FLT_DATE 
+                    AND (CPM_IND = 'Y' OR FFM_IND = 'Y')
+                    AND ULD_KEY NOT IN(SELECT ULD_KEY FROM ddt_uld DDT_ULD, ddt_msg DDT_MSG 
+                      WHERE DDT_MSG.tr_no= ddt_uld.tr_no 
+                      AND ddt_msg.flt_key=OPR.FLT_KEY AND DDT_MSG.flt_date=OPR.SCH_DATE)
+                      and not exists (select SHC from V_IMP_FLT_ULD_SHC V
+                                                join cust_airl_spl_code cc
+                                                on cc.spl_code=v.shc 
+                                                and cc.spl_type = 'SPL_PER'
+                                        where v.flt_key = opr.flt_key and v.flt_date = opr.sch_date and v.uld_key = T.uld_key
+                                        and cc.carr_code = opr.carr_code))) AS NL,
+(select CONCAT(COUNT(case when CHK_DTL.CHKIN_YN = 'Y' then 1 else null end) , '/' , COUNT(INB_CHK_DTL.ULD_KEY)) 
+                    FROM IMP_RAMP_INB_CHK_DTL INB_CHK_DTL  
+                    left JOIN IMP_RAMP_CHK_DTL CHK_DTL on CHK_DTL.tr_no = INB_CHK_DTL.tr_no and CHK_DTL.uld_key = INB_CHK_DTL.uld_key 
+                    where INB_CHK_DTL.FLT_KEY = OPR.FLT_KEY AND INB_CHK_DTL.FLT_DATE = OPR.SCH_DATE
+                      and (INB_CHK_DTL.CPM_IND = 'Y' OR INB_CHK_DTL.FFM_IND = 'Y')
+                      and exists (select SHC from V_IMP_FLT_ULD_SHC V
+                                                join cust_airl_spl_code cc
+                                                on cc.spl_code=v.shc 
+                                                and cc.spl_type = 'SPL_PER'
+                                        where v.flt_key = OPR.flt_key and v.flt_date = OPR.SCH_DATE and v.uld_key = INB_CHK_DTL.uld_key
+                                        and cc.carr_code = OPR.carr_code)) AS pe,
+                                        
+                  concat(round(coalesce((SELECT COUNT(INB_CHK_DTL.ULD_KEY) 
+                    FROM IMP_RAMP_INB_CHK_DTL INB_CHK_DTL  
+                    JOIN IMP_RAMP_CHK_DTL CHK_DTL on CHK_DTL.tr_no = INB_CHK_DTL.tr_no and CHK_DTL.uld_key = INB_CHK_DTL.uld_key 
+                    WHERE OPR.FLT_KEY = INB_CHK_DTL.FLT_KEY AND OPR.SCH_DATE = INB_CHK_DTL.FLT_DATE), 0) /
+                    coalesce((select case when num = 0 then 1 else num end from (SELECT flt_key, flt_date, COUNT(uld_key) num FROM IMP_RAMP_INB_CHK_DTL 
+                    WHERE (CPM_IND = 'Y' OR FFM_IND = 'Y')
+                    group by flt_key, flt_date) s
+                    WHERE OPR.FLT_KEY = FLT_KEY AND OPR.SCH_DATE = FLT_DATE ), 1)  *100, 2) , '%') AS percChkIn,
+                    
+                    (select CONCAT(COUNT(case when CHK_DTL.BRKDN_COMPL_YN = 'Y' then 1 else null end) , '/' , COUNT(INB_CHK_DTL.ULD_KEY)) 
+                    FROM IMP_RAMP_INB_CHK_DTL INB_CHK_DTL  
+                    left JOIN IMP_RAMP_CHK_DTL CHK_DTL on CHK_DTL.tr_no = INB_CHK_DTL.tr_no and CHK_DTL.uld_key = INB_CHK_DTL.uld_key 
+                    where INB_CHK_DTL.FLT_KEY = OPR.FLT_KEY AND INB_CHK_DTL.FLT_DATE = OPR.SCH_DATE AND (INB_CHK_DTL.CPM_IND = 'Y' OR INB_CHK_DTL.FFM_IND = 'Y')) AS totalBd,
+                    
+                    CONCAT((select round(coalesce(sum(recd_wt),0)/1000,2) from imp_car_shp shp
+                    where  shp.FLT_KEY = OPR.FLT_KEY AND shp.FLT_DATE = OPR.SCH_DATE)
+                    ,'/',
+                    (select round(coalesce(sum(man_wt),0)/1000,2) from edi_ffm_shp shp
+                    join edi_ffm_msg msg on msg.tr_no = shp.tr_no 
+                    where msg.ffm_status = 'P' and msg.FLT_KEY = OPR.FLT_KEY AND msg.FLT_DATE = OPR.SCH_DATE)) AS totalTon,
+                    
+                    (SELECT CONCAT(COUNT(case when CHK_DTL.BRKDN_COMPL_YN = 'Y' then 1 else null end) , '/' , COUNT(CHK_DTL.ULD_KEY)) 
+                    FROM IMP_RAMP_CHK_DTL CHK_DTL  
+                    LEFT JOIN DDT_MSG MSG on CHK_DTL.FLT_KEY = MSG.FLT_KEY  AND CHK_DTL.FLT_DATE = MSG.FLT_DATE  
+                    LEFT JOIN DDT_ULD ULD on msg.tr_no = uld.tr_no and CHK_DTL.uld_key = uld.uld_key AND ULD.TRF_TYPE = 'QT'
+                    WHERE CHK_DTL.FLT_KEY = OPR.FLT_KEY  AND CHK_DTL.FLT_DATE = OPR.SCH_DATE and ULD.ULD_KEY is not null) AS qtBd,
+                                    
+                    CONCAT((select round(coalesce(sum(bd.strg_wt) ,0)/1000,2)
+                    from IMP_AWB_STRG_DTL bd
+                    JOIN DDT_MSG dMSG on dMSG.FLT_KEY = bd.FLT_KEY  AND dMSG.FLT_DATE = bd.FLT_DATE 
+                    join DDT_ULD duld on duld.tr_no = dMSG.tr_no and duld.uld_key = bd.chkin_uld_key and duld.TRF_TYPE = 'QT' 
+                    where bd.FLT_KEY = OPR.FLT_KEY AND bd.FLT_DATE = OPR.SCH_DATE)
+                    ,'/',
+                    (select round(coalesce(sum(shp.man_wt), 0)/1000,2) 
+                    from edi_ffm_shp shp
+                    join edi_ffm_uld uld on uld.tr_no = shp.tr_no and uld.doc_line_no = shp.udoc_line_no
+                    join edi_ffm_msg msg on msg.tr_no = shp.tr_no 
+                    join DDT_MSG dMSG on dMSG.FLT_KEY = MSG.FLT_KEY  AND dMSG.FLT_DATE = MSG.FLT_DATE 
+                    join DDT_ULD duld on duld.tr_no = dMSG.tr_no AND duld.uld_key = uld.uld_key and duld.TRF_TYPE = 'QT'
+                    where msg.ffm_status = 'P' and msg.FLT_KEY = OPR.FLT_KEY AND msg.FLT_DATE = OPR.SCH_DATE )) AS qtTon,
+
+                    (SELECT CONCAT(COUNT(case when CHK_DTL.BRKDN_COMPL_YN = 'Y' then 1 else null end) , '/' , COUNT(CHK_DTL.ULD_KEY)) 
+                    FROM IMP_RAMP_CHK_DTL CHK_DTL  
+                    left JOIN IMP_RAMP_INB_CHK_DTL INB_CHK_DTL on CHK_DTL.tr_no = INB_CHK_DTL.tr_no and CHK_DTL.uld_key = INB_CHK_DTL.uld_key
+                    LEFT JOIN DDT_MSG MSG on CHK_DTL.FLT_KEY = MSG.FLT_KEY  AND CHK_DTL.FLT_DATE = MSG.FLT_DATE  
+                    LEFT JOIN DDT_ULD ULD on msg.tr_no = uld.tr_no and CHK_DTL.uld_key = uld.uld_key 
+                    WHERE CHK_DTL.FLT_KEY = OPR.FLT_KEY  AND CHK_DTL.FLT_DATE = OPR.SCH_DATE and ULD.ULD_KEY is null
+                    AND (INB_CHK_DTL.CPM_IND = 'Y' OR INB_CHK_DTL.FFM_IND = 'Y')
+                    and not exists (select SHC from V_IMP_FLT_ULD_SHC V
+                                                join cust_airl_spl_code cc
+                                                on cc.spl_code=v.shc 
+                                                and cc.spl_type = 'SPL_PER'
+                                        where v.flt_key = opr.flt_key and v.flt_date = opr.sch_date and v.uld_key = CHK_DTL.uld_key
+                                        and cc.carr_code = opr.carr_code)) AS nlBd,
+
+                    CONCAT((select round(coalesce(sum(bd.strg_wt) ,0)/1000,2)
+                    from IMP_AWB_STRG_DTL bd
+                    LEFT join DDT_MSG dMSG on dMSG.FLT_KEY = bd.FLT_KEY  AND dMSG.FLT_DATE = bd.FLT_DATE 
+                    LEFT join DDT_ULD duld on duld.tr_no = dMSG.tr_no and duld.uld_key = bd.chkin_uld_key 
+                    where bd.FLT_KEY = OPR.FLT_KEY AND bd.FLT_DATE = OPR.SCH_DATE and duld.ULD_KEY is null
+                    and not exists (select SHC from V_IMP_FLT_ULD_SHC V
+                                                join cust_airl_spl_code cc
+                                                on cc.spl_code=v.shc 
+                                                and cc.spl_type = 'SPL_PER'
+                                        where v.flt_key = opr.flt_key and v.flt_date = opr.sch_date and v.uld_key = bd.chkin_uld_key
+                                        and cc.carr_code = opr.carr_code))
+                    ,'/',
+                    (select round(coalesce(sum(shp.man_wt), 0) /1000,2)
+                    from edi_ffm_shp shp
+                    join edi_ffm_uld uld on uld.tr_no = shp.tr_no and uld.doc_line_no = shp.udoc_line_no
+                    join edi_ffm_msg msg on msg.tr_no = shp.tr_no 
+                    left join DDT_MSG dMSG on dMSG.FLT_KEY = MSG.FLT_KEY  AND dMSG.FLT_DATE = MSG.FLT_DATE 
+                    left join DDT_ULD duld on duld.tr_no = dMSG.tr_no AND duld.uld_key = uld.uld_key 
+                    where msg.ffm_status = 'P' and msg.FLT_KEY = OPR.FLT_KEY AND msg.FLT_DATE = OPR.SCH_DATE and duld.ULD_KEY is null
+                    and not exists (select SHC from V_IMP_FLT_ULD_SHC V
+                                                join cust_airl_spl_code cc
+                                                on cc.spl_code=v.shc 
+                                                and cc.spl_type = 'SPL_PER'
+                                        where v.flt_key = opr.flt_key and v.flt_date = opr.sch_date and v.uld_key = uld.uld_key
+                                        and cc.carr_code = opr.carr_code))) AS nlTon,
+
+                     (SELECT CONCAT(COUNT(case when CHK_DTL.BRKDN_COMPL_YN = 'Y' then 1 else null end) , '/' , COUNT(CHK_DTL.ULD_KEY)) 
+                    FROM IMP_RAMP_CHK_DTL CHK_DTL  
+                    join edi_ffm_msg msg on MSG.FLT_KEY = CHK_DTL.FLT_KEY  AND MSG.FLT_DATE = CHK_DTL.FLT_DATE  
+                    join edi_ffm_uld uld on uld.tr_no = msg.tr_no and uld.uld_key = CHK_DTL.uld_key
+                    WHERE CHK_DTL.FLT_KEY = OPR.FLT_KEY  AND CHK_DTL.FLT_DATE = OPR.SCH_DATE 
+                    and exists (select null from edi_ffm_shp where tr_no = uld.tr_no and udoc_line_no = uld.doc_line_no 
+                      and length(CONCAT(SPL_CODE1,SPL_CODE2,SPL_CODE3,SPL_CODE4,SPL_CODE5,SPL_CODE6,SPL_CODE7,SPL_CODE8,SPL_CODE9)) > 0)) AS shcBd,
+
+                    CONCAT((select round(coalesce(sum(bd.locn_wt) ,0)/1000,2)
+                    from awb_inventory bd
+                    join edi_ffm_msg msg on MSG.FLT_KEY = bd.FLT_KEY  AND MSG.FLT_DATE = bd.FLT_DATE  
+                    where  bd.FLT_KEY = OPR.FLT_KEY AND bd.FLT_DATE = OPR.SCH_DATE
+                    and exists (select null from edi_ffm_shp where tr_no = msg.tr_no and awb_no = bd.awb_no
+                      and length(CONCAT(SPL_CODE1,SPL_CODE2,SPL_CODE3,SPL_CODE4,SPL_CODE5,SPL_CODE6,SPL_CODE7,SPL_CODE8,SPL_CODE9)) > 0))
+                    ,'/',
+                    (select round(coalesce(sum(shp.man_wt), 0) /1000,2)
+                    from edi_ffm_shp shp
+                    join edi_ffm_uld uld on uld.tr_no = shp.tr_no and uld.doc_line_no = shp.udoc_line_no
+                    join edi_ffm_msg msg on msg.tr_no = shp.tr_no 
+                    where msg.ffm_status = 'P' and msg.FLT_KEY = OPR.FLT_KEY AND msg.FLT_DATE = OPR.SCH_DATE 
+                    and length(CONCAT(SPL_CODE1,SPL_CODE2,SPL_CODE3,SPL_CODE4,SPL_CODE5,SPL_CODE6,SPL_CODE7,SPL_CODE8,SPL_CODE9)) > 0)) AS shcTon,
+                   
+                     CONCAT(COALESCE(round(coalesce((select sum(recd_wt) from imp_car_shp shp
+                    where shp.FLT_KEY = OPR.FLT_KEY AND shp.FLT_DATE = OPR.SCH_DATE), 0) /
+                    (select case when num = 0 or num is null then 1 else num end from (select msg.flt_key, msg.flt_date, sum(man_wt) num from edi_ffm_shp shp
+                      join edi_ffm_msg msg on msg.tr_no = shp.tr_no 
+                      where msg.ffm_status = 'P' 
+                      group by msg.flt_key, msg.flt_date ) s
+                      where FLT_KEY = OPR.FLT_KEY AND FLT_DATE = OPR.SCH_DATE ) * 100, 2),0) , '%') AS percBD,
+                    
+                    (SELECT CONCAT(COUNT(CAR_SHP.CIR_PROC_USER) , '/', COUNT(CAR_SHP.AWB_NO)) 
+                    FROM IMP_CAR_SHP CAR_SHP WHERE OPR.FLT_KEY = CAR_SHP.FLT_KEY AND OPR.SCH_DATE = CAR_SHP.FLT_DATE) AS cir,
+                    
+                    (SELECT CONCAT(COUNT(CAR_SHP.DAM_PROC_USER) , '/', COUNT(CAR_SHP.AWB_NO)) 
+                    FROM IMP_CAR_SHP CAR_SHP WHERE OPR.FLT_KEY = CAR_SHP.FLT_KEY AND OPR.SCH_DATE = CAR_SHP.FLT_DATE) AS dam                      
+                    FROM FLT_OPR OPR, FLT_OPR_EVENTS EVENT 
+		WHERE OPR.TR_NO=EVENT.TR_NO AND OPR.FLT_TYPE='A'
+		and  TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'), TO_CHAR(COALESCE(COALESCE(OPR.ACT_TIME,OPR.SCH_TIME),0),'0000')),'DDMONYYHH24MI')  &gt;= TO_DATE(#fltDtFr#,'DDMONYYHH24MI') 
+		and  TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'), TO_CHAR(COALESCE(COALESCE(OPR.ACT_TIME,OPR.SCH_TIME),0),'0000')),'DDMONYYHH24MI')  &lt;= TO_DATE(#fltDtTo#,'DDMONYYHH24MI') 
+        <isNotEmpty property="module">
+       	AND (OPR.FLT_MODULE1=#module# OR OPR.FLT_MODULE2=#module#) 
+        </isNotEmpty>    
+		<isNotEmpty property="acftType" >
+		AND OPR.ACFT_TYPE=#acftType#
+		</isNotEmpty>
+		<isNotEmpty property="usage" >
+		AND OPR.CGO_ACFT_TYPE=#usage#
+		</isNotEmpty>		
+		<isNotEmpty property="fltKey">
+		AND OPR.FLT_KEY=#fltKey#
+		</isNotEmpty>		
+		<isEmpty property="fltKey">
+		    	<isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+            	</isNotEmpty>
+       </isEmpty>
+       <isEqual property="outstandingYN" compareValue="Y" prepend="AND">
+     		OPR.FLT_TYPE='A' AND EVENT.FLT_CLS_YN='N'
+     	</isEqual>
+		ORDER BY schDate desc, sta asc	
+	</select> -->
+	
+		<parameterMap id="impWhListMap" class="map" >
+            <parameter property="v_from_date"  jdbcType="VARCHAR" javaType="java.lang.String"   mode="IN"/>
+            <parameter property="v_to_date" jdbcType="VARCHAR" javaType="java.lang.String"   mode="IN"/>
+            <parameter property="v_module" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_acft_type" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_usage" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_flt_key" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_rho" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+      </parameterMap>
+	  <procedure id="prcimpWhList" parameterMap="impWhListMap">
+            { call prc_flt_monitoring(?,?,?,?,?,?,?)  }
+      </procedure>
+      
+	
+		<select id="impWhList" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ImpMonitorBO">
+		  SELECT  FLT_KEY fltNoDisp,
+                  CARR_CODE flightCarr,
+                  TR_NO txnNo,
+                  FLT_NO flightNo,
+                  SCH_DATE schDate,
+                  STA sta,
+                  ATA ata,
+                  ACFT_TYPE acftType,
+                  USAGE usage,
+                  MODULE module,
+                  MODULE2 module2,
+                  TOTAL total,
+                  QT qt,
+                  XT xt,
+                  NL NL,
+                  PE pe,
+                  PER_CHK_IN percChkIn,
+                  TOTAL_BD totalBd,
+                  TOTAL_TON totalTon,
+                  QT_BD qtBd,
+                  XT_BD xtBd,
+                  QT_TON qtTon,
+                  XT_TON xtTon,
+                  NL_BD nlBd,
+                  NL_TON nlTon,
+                  SHC_BD shcBd,
+                  SHC_TON shcTon,
+                  PER_BD percBD,
+                  CIR cir,
+                  DAM dam,
+                  COLOR_1 chkInClr,
+                  COLOR_2 bdClr,
+                  RHO rhoUser,
+                  (select code_desc from CUST_COMPANY where  CODE=RHO) AS rhoUserName 
+		FROM  GT_FLT_MONITOR  OPR        
+		WHERE 1=1   
+          <isEmpty property="fltKey">
+		    	<isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+            	</isNotEmpty>
+       	</isEmpty>
+       	<isEqual property="outstandingYN" compareValue="Y">
+     			AND OPR.STATUS !='X' and ( OPR.FLT_CLOSE='N' or (public.PKG_COMMON__GET_FLT_ATA((substr(OPR.FLT_KEY,0,length(OPR.FLT_KEY)-8)),cast(OPR.SCH_DATE AS DATE),'A','DD')) IS NULL )
+     	</isEqual>
+    	<isNotEmpty property="groupCarrList">
+            AND   (OPR.CARR_CODE = #groupCarrList# 
+            OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+            WHERE GRP_CARR_CODE     = #groupCarrList#))                                          
+        </isNotEmpty>
+      	<isNotEmpty property="carrList">
+            AND   OPR.CARR_CODE = #carrList# 
+     	</isNotEmpty>
+          ORDER BY COALESCE(EST_DATE,CAST(SCH_DATE AS TIMESTAMP)) , COALESCE(EST_TIME,SCH_TIME) 
+	</select> 
+	
+	
+	<parameterMap id="expDocListMap" class="map" >
+            <parameter property="v_from_date" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_to_date" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_module" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_acft_type" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_usage" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_flt_key" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_rho" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+        </parameterMap>
+	  <procedure id="prcexpDocList" parameterMap="expDocListMap">
+            { call PRC_FLT_MONITORING_EXP_DOC(?,?,?,?,?,?,?)  }
+      </procedure>
+      
+   <select id="expDocList" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ExpMonitorBO">
+     	 SELECT FLT_KEY fltNoDisp,
+                  TR_NO txnNo,
+                  CARR_CODE flightCarr,
+                  FLT_NO flightNo,
+                  SCH_DATE schDate,
+                  STA std,
+                  ATA atd,
+                  ACFT_TYPE acftType,
+                  USAGE usage,
+                  MODULE module,
+                  MODULE2 module2,
+                  EST_TIME estimateDate,
+                  SCH_TIME scheduleDate,
+                  ALLOTMENT_1 allotment1,
+                  ALLOTMENT_2 allotment2,
+                  TONNAGE tonnage,
+                  RCV_BOOKD rcvBooked,
+                  PMAN pman,
+                  coalesce(TRMAC_BUP_PC,0) tarmacbupc,
+                  coalesce(TRMAC_BUP_WT,0.0) tarmacbuwt,
+                  BULK_BU bulkbu,
+                  PPK_BU ppkbu,
+                  QT_BU qtbu,
+                  BUP_ERC buperc,
+                  BULK_MAN_BU bulkpmanbu,
+                  PPK_MAN_BU ppkpmanbu,
+                  SEC_CHK secCheck,
+                  DISC disc,
+                  CONS cons,
+                  COLOR_1 color1,
+                  COLOR_2 color2,
+                  RHO rhoUser,
+                  (select code_desc from CUST_COMPANY where  CODE=RHO) AS rhoUserName ,
+                  DUO_RECD_IND as duoRecv,
+                  DUO_OFLD_IND as duoOfld,
+                  DUO_IN_TIME as duoInTime
+		FROM GT_FLT_MONITOR  OPR    
+		    WHERE 1=1      
+   	<isEmpty property="fltKey">
+		    <isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+            </isNotEmpty>
+		</isEmpty>
+		<isEqual property="outstandingYN" compareValue="Y">
+     		AND OPR.STATUS !='X' and ( OPR.FLT_CLOSE='N' or (public.PKG_COMMON__GET_FLT_ATA((substr(OPR.FLT_KEY,0,length(OPR.FLT_KEY)-8)),cast(OPR.SCH_DATE AS DATE),'D','DD')) IS NULL )
+     	</isEqual>
+     	<isNotEmpty property="groupCarrList">
+            AND   (OPR.CARR_CODE = #groupCarrList# 
+            OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+            WHERE GRP_CARR_CODE     = #groupCarrList#))                                          
+        </isNotEmpty>
+      	<isNotEmpty property="carrList">
+            AND   OPR.CARR_CODE = #carrList# 
+     	</isNotEmpty>
+          ORDER BY COALESCE(EST_DATE,CAST(SCH_DATE AS TIMESTAMP)) , COALESCE(EST_TIME,SCH_TIME)
+     </select>
+                  
+
+	<!--<select id="expDocList" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ExpMonitorBO">
+		SELECT  CONCAT(OPR.FLT_KEY ,'/',TO_CHAR(OPR.SCH_DATE,'DDMONYY')) AS fltNoDisp, OPR.TR_NO AS txnNo, OPR.CARR_CODE flightCarr, OPR.FLT_NO flightNo,TO_CHAR(OPR.SCH_DATE,'DDMONYY') schDate,		  
+	    CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),0,2) , ':' ,SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),3,4))  AS std,
+	    CASE  WHEN public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,'D') IS NULL THEN public.PKG_COMMON__get_flt_eta(OPR.FLT_KEY,OPR.SCH_DATE,'D') ELSE Concat('*',public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,'D')) END AS atd,            
+	    OPR.ACFT_TYPE AS acftType,OPR.CGO_ACFT_TYPE AS usage,OPR.FLT_MODULE1 as module,OPR.FLT_MODULE2 as module2 ,    
+	    ( select SUMMARY from edi_elp_summary 
+          where  ALLOT_TYPE in ('WH Buildup') 
+          and flt_key=OPR.FLT_KEY and flt_date=OPR.SCH_DATE
+        and ver_no=(select max(ver_no) from edi_elp_summary where flt_key=OPR.FLT_KEY and flt_date=OPR.SCH_DATE) )  AS allotment1,
+	    ( select SUMMARY from edi_elp_summary 
+          where  ALLOT_TYPE in ('PPK') 
+          and flt_key=OPR.FLT_KEY and flt_date=OPR.SCH_DATE
+        and ver_no=(select max(ver_no) from edi_elp_summary where flt_key=OPR.FLT_KEY and flt_date=OPR.SCH_DATE) ) AS allotment2,
+	    (SELECT CASE  WHEN SUM(PCS) IS NULL THEN '' ELSECONCAT( SUM(PCS),'/',SUM(NET_WT)) END FROM EDI_FBL FBL
+            JOIN EDI_FBL_SHP FBL_SHP ON FBL.TR_NO=FBL_SHP.TR_NO WHERE FBL.FLT_KEY=OPR.FLT_KEY AND FBL.FLT_DATE=OPR.SCH_DATE) as tonnage,
+	    (SELECT CASE WHEN PRE_RCL.TTL_WT > RCL.RCL_WT THEN  RCL.RCL_WT ELSE PRE_RCL.TTL_WT END
+	        FROM EXP_BOOKING_DTL BOOKING
+	        JOIN EXP_PRE_RCL_HD PRE_RCL ON BOOKING.ERCL_NO=PRE_RCL.PRE_RCL_NO
+	        JOIN EXP_RCL_HD RCL ON RCL.PRE_RCL_NO=PRE_RCL.PRE_RCL_NO
+	        WHERE RCL.FLT_DATE = OPR.SCH_DATE AND RCL.FLT_KEY=OPR.FLT_KEY )  AS rcvBooked,
+	    (SELECT CASE  WHEN SUM(PMAN_PCS) IS NULL THEN '' ELSECONCAT( SUM(PMAN_PCS) , '/' , SUM(PMAN_WT)) END  FROM EXP_PMANIFEST_AWB PMAN
+	        WHERE PMAN.FLT_DATE = OPR.SCH_DATE AND PMAN.FLT_KEY=OPR.FLT_KEY )  AS pman ,
+	    (SELECT coalesce(SUM(TARMAC.ASSIGNED_PCS),0) 
+	        from EXP_PMAN_TARMAC_ULD_AWB TARMAC 
+	   		JOIN ( SELECT S.AWB_NO,S.AWB_DATE 
+	              FROM DDT_MSG m, DDT_SHP_TRF_DTL  t,DDT_SHP s 
+	              where m.TR_NO=t.TR_NO and t.DOC_LINE_NO=s.DOC_LINE_NO and t.TR_NO=s.TR_NO and t.TRF_TYPE='TT' and m.TR_NO=s.TR_NO) tt on  TARMAC.AWB_NO=tt.AWB_NO  and TARMAC.AWB_DATE=tt.AWB_DATE
+	      	JOIN ( SELECT S.AWB_NO,S.AWB_DATE
+	               FROM DDT_MSG m,DDT_SHP_TRF_DTL  t,DDT_SHP s 
+	               where m.TR_NO=t.TR_NO and t.DOC_LINE_NO=s.DOC_LINE_NO and t.TR_NO=s.TR_NO and t.TRF_TYPE='IF' and m.TR_NO=s.TR_NO) tif  on  TARMAC.AWB_NO=tif.AWB_NO  and TARMAC.AWB_DATE=tif.AWB_DATE 
+	        WHERE TARMAC.FLT_KEY=OPR.FLT_KEY and TARMAC.FLT_DATE=OPR.SCH_DATE) as  tarmacbupc,
+	    (SELECT coalesce(SUM(TARMAC.ASSIGNED_WT),0) 
+	    	from EXP_PMAN_TARMAC_ULD_AWB TARMAC 
+	   		JOIN ( SELECT S.AWB_NO,S.AWB_DATE 
+	              FROM DDT_MSG m, DDT_SHP_TRF_DTL  t,DDT_SHP s 
+	              where m.TR_NO=t.TR_NO and t.DOC_LINE_NO=s.DOC_LINE_NO and t.TR_NO=s.TR_NO and t.TRF_TYPE='TT' and m.TR_NO=s.TR_NO) tt on  TARMAC.AWB_NO=tt.AWB_NO  and TARMAC.AWB_DATE=tt.AWB_DATE
+	      	JOIN ( SELECT S.AWB_NO,S.AWB_DATE
+	               FROM DDT_MSG m,DDT_SHP_TRF_DTL  t,DDT_SHP s 
+	               where m.TR_NO=t.TR_NO and t.DOC_LINE_NO=s.DOC_LINE_NO and t.TR_NO=s.TR_NO and t.TRF_TYPE='IF' and m.TR_NO=s.TR_NO) tif  on  TARMAC.AWB_NO=tif.AWB_NO  and TARMAC.AWB_DATE=tif.AWB_DATE 
+	        WHERE TARMAC.FLT_KEY=OPR.FLT_KEY and TARMAC.FLT_DATE=OPR.SCH_DATE) as  tarmacbuwt,
+	    (SELECT CASE  WHEN SUM(ASSIGNED_PCS) IS NULL THEN '' ELSECONCAT( SUM(ASSIGNED_PCS) , '/' , SUM(ASSIGNED_WT )) END FROM EXP_PMANIFEST_ULD_AWB EXP_PMAN WHERE EXP_PMAN.FLT_DATE = OPR.SCH_DATE AND EXP_PMAN.FLT_KEY=OPR.FLT_KEY AND PPK_TYPE='B') AS bulkbu,
+	    (SELECT CASE  WHEN SUM(PPK_PCS) IS NULL THEN '' ELSECONCAT( SUM(PPK_PCS) , '/' , SUM(PPK_WT )) END FROM EXP_PMANIFEST_AWB EXP_PMAN WHERE EXP_PMAN.FLT_DATE = OPR.SCH_DATE AND EXP_PMAN.FLT_KEY=OPR.FLT_KEY ) AS ppkbu,
+	    (SELECT CASE  WHEN SUM(ASSIGNED_PCS) IS NULL THEN '' ELSECONCAT( SUM(ASSIGNED_PCS),'/',SUM(ASSIGNED_WT)) END FROM EXP_PMANIFEST_ULD_AWB EXP_PMAN
+        JOIN DDT_SHP SHP ON SHP.AWB_NO = EXP_PMAN.awb_no AND SHP.AWB_DATE = EXP_PMAN.awb_date
+        JOIN DDT_MSG dm ON dm.flt_key = EXP_PMAN.FLT_KEY AND dm.flt_date = EXP_PMAN.FLT_DATE
+        JOIN DDT_SHP_TRF_DTL dstd ON dstd.tr_no =dm.TR_NO AND dstd.SDOC_LINE_NO=SHP.DOC_LINE_NO
+        WHERE EXP_PMAN.FLT_DATE = OPR.SCH_DATE AND EXP_PMAN.FLT_KEY=OPR.FLT_KEY AND dstd.QT_BU='Y' AND (dstd.TRF_TYPE  = 'IF' OR dstd.TRF_TYPE = 'TT')) AS qtbu,
+	    case when ((SELECT SUM(PMAN_WT)  FROM EXP_PMANIFEST_AWB PMAN
+	            WHERE PMAN.FLT_DATE = OPR.SCH_DATE AND PMAN.FLT_KEY=OPR.FLT_KEY )-(SELECT SUM(PPK_WT ) FROM EXP_PMANIFEST_AWB EXP_PMAN WHERE EXP_PMAN.FLT_DATE = OPR.SCH_DATE AND EXP_PMAN.FLT_KEY=OPR.FLT_KEY )-(select coalesce(SUM(TARMAC.ASSIGNED_WT),0)  
+	    		from EXP_PMAN_TARMAC_ULD_AWB TARMAC 
+	   		JOIN ( SELECT S.AWB_NO,S.AWB_DATE 
+	            FROM DDT_MSG m, DDT_SHP_TRF_DTL  t,DDT_SHP s 
+	            where m.TR_NO=t.TR_NO and t.DOC_LINE_NO=s.DOC_LINE_NO and t.TR_NO=s.TR_NO and t.TRF_TYPE='TT' and m.TR_NO=s.TR_NO) tt on  TARMAC.AWB_NO=tt.AWB_NO  and TARMAC.AWB_DATE=tt.AWB_DATE
+	      	JOIN ( SELECT S.AWB_NO,S.AWB_DATE
+	               FROM DDT_MSG m,DDT_SHP_TRF_DTL  t,DDT_SHP s 
+	               where m.TR_NO=t.TR_NO and t.DOC_LINE_NO=s.DOC_LINE_NO and t.TR_NO=s.TR_NO and t.TRF_TYPE='IF' and m.TR_NO=s.TR_NO) tif  on  TARMAC.AWB_NO=tif.AWB_NO  and TARMAC.AWB_DATE=tif.AWB_DATE 
+	        WHERE TARMAC.FLT_KEY=OPR.FLT_KEY and TARMAC.FLT_DATE=OPR.SCH_DATE)) = 0 then '' else
+	    TO_CHAR(((SELECT SUM(ASSIGNED_WT ) FROM EXP_PMANIFEST_ULD_AWB EXP_PMAN WHERE EXP_PMAN.FLT_DATE = OPR.SCH_DATE AND EXP_PMAN.FLT_KEY=OPR.FLT_KEY AND PPK_TYPE='B')/((SELECT SUM(PMAN_WT)  FROM EXP_PMANIFEST_AWB PMAN
+	            WHERE PMAN.FLT_DATE = OPR.SCH_DATE AND PMAN.FLT_KEY=OPR.FLT_KEY )-(SELECT SUM(PPK_WT ) FROM EXP_PMANIFEST_AWB EXP_PMAN WHERE EXP_PMAN.FLT_DATE = OPR.SCH_DATE AND EXP_PMAN.FLT_KEY=OPR.FLT_KEY )-(select coalesce(SUM(TARMAC.ASSIGNED_WT),0)  
+	    		from EXP_PMAN_TARMAC_ULD_AWB TARMAC 
+	   		JOIN ( SELECT S.AWB_NO,S.AWB_DATE 
+	            FROM DDT_MSG m, DDT_SHP_TRF_DTL  t,DDT_SHP s 
+	            where m.TR_NO=t.TR_NO and t.DOC_LINE_NO=s.DOC_LINE_NO and t.TR_NO=s.TR_NO and t.TRF_TYPE='TT' and m.TR_NO=s.TR_NO) tt on  TARMAC.AWB_NO=tt.AWB_NO  and TARMAC.AWB_DATE=tt.AWB_DATE
+	      	JOIN ( SELECT S.AWB_NO,S.AWB_DATE
+	               FROM DDT_MSG m,DDT_SHP_TRF_DTL  t,DDT_SHP s 
+	               where m.TR_NO=t.TR_NO and t.DOC_LINE_NO=s.DOC_LINE_NO and t.TR_NO=s.TR_NO and t.TRF_TYPE='IF' and m.TR_NO=s.TR_NO) tif  on  TARMAC.AWB_NO=tif.AWB_NO  and TARMAC.AWB_DATE=tif.AWB_DATE 
+	        WHERE TARMAC.FLT_KEY=OPR.FLT_KEY and TARMAC.FLT_DATE=OPR.SCH_DATE))*100),'990.99') end AS buperc,
+	    (SELECT CASE WHEN SUM(ASSIGNED_PCS)=SUM(BULK_PCS) THEN 'Y' ELSE 'N' END FROM EXP_PMANIFEST_ULD_AWB EXP_PMAN
+	        JOIN EXP_PMANIFEST_AWB EXP_PMAN_AWB ON EXP_PMAN.AWB_NO=EXP_PMAN_AWB.AWB_NO AND EXP_PMAN.AWB_DATE=EXP_PMAN_AWB.AWB_DATE AND EXP_PMAN.FLT_KEY=EXP_PMAN_AWB.FLT_KEY AND EXP_PMAN.FLT_DATE=EXP_PMAN_AWB.FLT_DATE
+	        WHERE EXP_PMAN.FLT_KEY=OPR.FLT_KEY and EXP_PMAN.FLT_DATE=OPR.SCH_DATE AND PPK_TYPE='B') AS bulkpmanbu,
+	    (SELECT CASE WHEN SUM(ASSIGNED_PCS)=SUM(PPK_PCS) THEN 'Y' ELSE 'N' END FROM EXP_PMANIFEST_ULD_AWB EXP_PMAN
+	        JOIN EXP_PMANIFEST_AWB EXP_PMAN_AWB ON EXP_PMAN.AWB_NO=EXP_PMAN_AWB.AWB_NO AND EXP_PMAN.AWB_DATE=EXP_PMAN_AWB.AWB_DATE AND EXP_PMAN.FLT_KEY=EXP_PMAN_AWB.FLT_KEY AND EXP_PMAN.FLT_DATE=EXP_PMAN_AWB.FLT_DATE
+	        WHERE EXP_PMAN.FLT_KEY=OPR.FLT_KEY and EXP_PMAN.FLT_DATE=OPR.SCH_DATE AND PPK_TYPE='P') AS ppkpmanbu,
+	    (SELECT CASE COUNT(1) WHEN 0 THEN 'N' ELSE 'Y' END FROM EXP_SEC_CHK_JO SEC_CHK WHERE SEC_CHK.FLT_KEY=OPR.FLT_KEY and SEC_CHK.FLT_DATE=OPR.SCH_DATE AND JO_TYPE='SC' AND STATUS='COMPLETED') as secCheck,
+	    (SELECT CASE WHEN SUM(EXP_PMAN.ASSIGNED_PCS) > SUM(HAWB.PC) THEN 'Y' ELSE 'N' END
+	        FROM EXP_PMANIFEST_ULD_AWB EXP_PMAN
+	        JOIN (SELECT TR_NO AS TR_NO,SUM(PC) AS PC FROM EXP_PMANIFEST_ULD_AWB_HAWB GROUP BY TR_NO) HAWB ON EXP_PMAN.TR_NO=HAWB.TR_NO
+	        WHERE EXP_PMAN.FLT_DATE = OPR.SCH_DATE AND EXP_PMAN.FLT_KEY=OPR.FLT_KEY)AS disc,
+	    (SELECT CASE  (SELECT COUNT(tab1.CONS) from (select CONS.CONSTRAINT CONS ,FLT_KEY FLT_KEY,FLT_DATE FLT_DATE FROM EXP_MANIFEST_DTL MANF
+	        LEFT OUTER JOIN MAST_CONSTRAINT_CODE CONS ON MANF.CC_CODE=CONS.CODE ) TAB1
+	        where tab1.CONS='Y' AND tab1.FLT_KEY=OPR.FLT_KEY AND tab1.FLT_DATE=OPR.SCH_DATE) WHEN 0 THEN 'N' ELSE 'Y' END) AS cons,
+	       CONCAT(TO_CHAR(OPR.EST_DATE,'YYYYMMDD'),LPAD(OPR.EST_TIME,4,'0')) AS estimateDate,
+           CONCAT(TO_CHAR(OPR.SCH_DATE,'YYYYMMDD'),LPAD(OPR.SCH_TIME,4,'0')) AS scheduleDate	
+	    FROM FLT_OPR OPR 
+	    WHERE OPR.FLT_TYPE='D'
+	    and  TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'), TO_CHAR(COALESCE(COALESCE(OPR.ACT_TIME,OPR.SCH_TIME),0),'0000')),'DDMONYYHH24MI')  &gt;= TO_DATE(#fltDtFr#,'DDMONYYHH24MI') 
+		and  TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'), TO_CHAR(COALESCE(COALESCE(OPR.ACT_TIME,OPR.SCH_TIME),0),'0000')),'DDMONYYHH24MI')  &lt;= TO_DATE(#fltDtTo#,'DDMONYYHH24MI')            
+	    <isNotEmpty property="module">
+	    	AND (OPR.FLT_MODULE1=#module# OR OPR.FLT_MODULE2=#module#) 
+	    </isNotEmpty>
+	    <isNotEmpty property="acftType" >
+	    	AND OPR.ACFT_TYPE=#acftType#
+	    </isNotEmpty>
+	    <isNotEmpty property="usage" >
+	        AND OPR.CGO_ACFT_TYPE=#usage#
+	    </isNotEmpty>
+	    <isNotEmpty property="fltKey">
+		    AND OPR.FLT_KEY=#fltKey#
+		</isNotEmpty>
+		<isEmpty property="fltKey">
+		    <isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+            </isNotEmpty>
+		</isEmpty>
+		<isEqual property="outstandingYN" compareValue="Y" prepend="AND">
+     		(OPR.FLT_TYPE='D' AND (public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,OPR.FLT_TYPE,'DD')) IS NULL)
+     	</isEqual>
+		ORDER BY COALESCE(estimateDate, scheduleDate) ASC	
+	</select>
+	
+   
+   --><parameterMap id="expSlaListMap" class="map" >
+            <parameter property="v_from_date" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_to_date" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_module" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_acft_type" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_usage" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_flt_key" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+            <parameter property="v_rho" jdbcType="VARCHAR" javaType="java.lang.String" mode="IN"/>
+        </parameterMap>
+	  <procedure id="prcexpSlaList" parameterMap="expSlaListMap">
+            { call PRC_FLT_MONITORING_EXP_SLA(?,?,?,?,?,?,?)  }
+      </procedure>
+
+
+	<select id="expSlaList" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ExpMonitorBO">
+		SELECT OPR.FLT_KEY fltNoDisp,
+  OPR.TR_NO txnNo,
+  OPR.CARR_CODE flightCarr,
+  OPR.FLT_NO flightNo,
+  OPR.SCH_DATE schDate,
+  OPR.STA std,
+  OPR.ATA atd,
+  OPR.ACFT_TYPE acftType,
+  OPR.USAGE usage,
+  OPR.MODULE module,
+  OPR.MODULE2 module2,
+  OPR.ULD_ASGND uldasgd,
+  OPR.ULD_CHKOUT uldchkout,
+  OPR.FLT_FINAL tofnl,
+  OPR.BU_COMPLETE bucomp,
+  OPR.DOC_COMPLETED doccompl,
+  OPR.FINAL_MANF manffnl,
+  OPR.DISPATCH_READY rdydisp,
+  OPR.DLS_IND dls,
+  OPR.CUSTOM_OUT customout,
+  OPR.DEPART depart,
+  OPR.OFLD_TON ofldton,
+  OPR.OFFLD_CONFIRM ofldcomp,
+  OPR.COLOR_1 color1,
+  OPR.COLOR_2 color2,
+  OPR.FLT_CLOSE fltClose,
+  OPR.RHO rhoUser,
+  (SELECT code_desc FROM CUST_COMPANY WHERE CODE=OPR.RHO
+  ) AS rhoUserName
+			FROM GT_FLT_MONITOR OPR
+join flt_opr_events a on a.carr_code    = opr.carr_code and a.flt_no = opr.flt_no AND a.sch_date  = CAST(opr.sch_date AS date) and a.sch_date = CAST(opr.sch_date AS DATE) and a.flt_type = 'D'
+			WHERE 1 = 1
+			<isNotEmpty property="notoc">
+			<isEqual property="notoc" compareValue="Y">
+			AND a.NOTOC_IND = 'Y'
+			</isEqual>
+			<isEqual property="notoc" compareValue="N">
+			AND (a.NOTOC_IND = 'N' or a.NOTOC_IND is null)
+			</isEqual>
+			</isNotEmpty>
+			<isEmpty property="fltKey">
+		    	<isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+            	</isNotEmpty>
+			</isEmpty>
+		<isEqual property="outstandingYN" compareValue="Y">
+				AND OPR.STATUS !='X' and ( OPR.FLT_CLOSE='N' or (public.PKG_COMMON__GET_FLT_ATA((substr(OPR.FLT_KEY,0,length(OPR.FLT_KEY)-8)),cast(OPR.SCH_DATE AS DATE),'D','DD')) IS NULL )
+     	</isEqual>
+     	<isNotEmpty property="groupCarrList">
+            AND   (OPR.CARR_CODE = #groupCarrList# 
+            OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+            WHERE GRP_CARR_CODE     = #groupCarrList#))                                          
+        </isNotEmpty>
+      	<isNotEmpty property="carrList">
+            AND   OPR.CARR_CODE = #carrList# 
+     	</isNotEmpty>
+          ORDER BY COALESCE(OPR.EST_DATE,CAST(OPR.SCH_DATE AS TIMESTAMP)), COALESCE(OPR.EST_TIME,OPR.SCH_TIME) 
+		</select>
+	
+	<!--<select id="expSlaList" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ExpMonitorBO">
+		SELECT  CONCAT(OPR.FLT_KEY ,'/',TO_CHAR(OPR.SCH_DATE,'DDMONYY')) AS fltNoDisp, OPR.TR_NO AS txnNo,    OPR.CARR_CODE flightCarr, OPR.FLT_NO flightNo,
+		  TO_CHAR(OPR.SCH_DATE,'DDMONYY') schDate,
+            CONCAT(SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),0,2) , ':' ,SUBSTR(TRIM(TO_CHAR(OPR.SCH_TIME,'0000')),3,4))  AS std,
+            CASE  WHEN public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,'D') IS NULL THEN public.PKG_COMMON__get_flt_eta(OPR.FLT_KEY,OPR.SCH_DATE,'D') ELSE
+            Concat('*',public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,'D')) END AS atd,            
+            OPR.ACFT_TYPE AS acftType,OPR.CGO_ACFT_TYPE AS usage,OPR.FLT_MODULE1 as module,OPR.FLT_MODULE2 as module2 ,    
+             ( SELECT STRAGG(STRINGDELIM(concat(count(*),ALLOT_GROUP.ULD_ALLOT),','))
+            FROM (SELECT FLT_KEY FLT_KEY,FLT_DATE FLT_DATE,SUBSTR(ULD_BT_NO,0,3) ULD_GROUP FROM EXP_PMANIFEST_ULD) PMAN_ULD 
+            JOIN ULD_GROUP_TYPE GROUP_TYPE ON GROUP_TYPE.ULD_TYPE=PMAN_ULD.ULD_GROUP
+            JOIN MAST_ULD_ALLOT_GROUP ALLOT_GROUP ON ALLOT_GROUP.ULD_GROUP=GROUP_TYPE.ULD_GROUP 
+            WHERE PMAN_ULD.FLT_KEY=OPR.FLT_KEY AND PMAN_ULD.FLT_DATE=OPR.SCH_DATE
+            group by ALLOT_GROUP.ULD_ALLOT
+            )  AS uldasgd,
+            ( SELECT STRAGG(STRINGDELIM(concat(count(*),ALLOT_GROUP.ULD_ALLOT),','))
+            FROM (SELECT FLT_KEY FLT_KEY,FLT_DATE FLT_DATE,SUBSTR(ULD_KEY,0,3) ULD_GROUP FROM EXP_CHKOUT_DTL) CHK_ULD 
+            JOIN ULD_GROUP_TYPE GROUP_TYPE ON GROUP_TYPE.ULD_TYPE=CHK_ULD.ULD_GROUP
+            JOIN MAST_ULD_ALLOT_GROUP ALLOT_GROUP ON ALLOT_GROUP.ULD_GROUP=GROUP_TYPE.ULD_GROUP 
+            WHERE CHK_ULD.FLT_KEY=OPR.FLT_KEY AND CHK_ULD.FLT_DATE=OPR.SCH_DATE 
+            group by ALLOT_GROUP.ULD_ALLOT
+            ) as uldchkout,
+            (SELECT CASE COUNT(OPR_EVNT.FLT_KEY) WHEN 0 THEN 'N' ELSE 'Y' END FROM FLT_OPR_EVENTS OPR_EVNT WHERE OPR_EVNT.SCH_DATE = OPR.SCH_DATE AND OPR_EVNT.FLT_KEY=OPR.FLT_KEY AND TO_FINALIZE='Y') AS tofnl,
+            (SELECT CASE COUNT(OPR_EVNT.FLT_KEY) WHEN 0 THEN 'N' ELSE 'Y' END FROM FLT_OPR_EVENTS OPR_EVNT WHERE OPR_EVNT.SCH_DATE = OPR.SCH_DATE AND OPR_EVNT.FLT_KEY=OPR.FLT_KEY AND OPR_EVNT.BUILDUP_CDATE IS NOT NULL) AS bucomp,
+           (SELECT CASE COUNT(OPR_EVNT.FLT_KEY) WHEN 0 THEN 'N' ELSE 'Y' END FROM FLT_OPR_EVENTS OPR_EVNT WHERE OPR_EVNT.SCH_DATE = OPR.SCH_DATE AND OPR_EVNT.FLT_KEY=OPR.FLT_KEY AND OPR_EVNT.DOC_COMPL_YN='Y') AS doccompl ,
+           (SELECT CASE COUNT(OPR_EVNT.FLT_KEY) WHEN 0 THEN 'N' ELSE 'Y' END FROM FLT_OPR_EVENTS OPR_EVNT WHERE OPR_EVNT.SCH_DATE = OPR.SCH_DATE AND OPR_EVNT.FLT_KEY=OPR.FLT_KEY AND OPR_EVNT.FINAL_MANF_IND='Y') AS manffnl ,
+           ( SELECT CASE WHEN 
+           (SELECT  count(1) from EXP_PMANIFEST_ULD ULD WHERE READY_DISP = 'Y' and ULD.FLT_KEY = OPR.FLT_KEY and ULD.flt_date=OPR.SCH_DATE and ULD.FLT_TYPE = 'D')=
+           (SELECT  count(1) from EXP_PMANIFEST_ULD ULD WHERE ULD.FLT_KEY = OPR.FLT_KEY and ULD.flt_date=OPR.SCH_DATE and ULD.FLT_TYPE = 'D') THEN 'Y' ELSE 'N' END) AS rdydisp,
+           
+           (SELECT CASE COUNT(OPR_EVNT.FLT_KEY) WHEN 0 THEN 'N' ELSE 'Y' END FROM FLT_OPR_EVENTS OPR_EVNT WHERE OPR_EVNT.SCH_DATE = OPR.SCH_DATE AND OPR_EVNT.FLT_KEY=OPR.FLT_KEY AND OPR_EVNT.DLS_IND='Y') AS dls ,
+           (SELECT CASE COUNT(OPR_EVNT.FLT_KEY) WHEN 0 THEN 'N' ELSE 'Y' END FROM FLT_OPR_EVENTS OPR_EVNT WHERE OPR_EVNT.SCH_DATE = OPR.SCH_DATE AND OPR_EVNT.FLT_KEY=OPR.FLT_KEY AND CTM_OUT_DATE IS NOT NULL) AS customout ,
+           CASE  WHEN OPR.ACT_DATE IS NULL THEN 'N' ELSE 'Y' END AS depart,
+           (SELECT CASE  WHEN SUM(OFFLOAD_PCS) IS NULL THEN '' ELSECONCAT( SUM(OFFLOAD_PCS) , '/' , SUM(OFFLOAD_WT)) END FROM EXP_OFFLOAD_ULD_AWB OFFLOAD_AWB WHERE OFFLOAD_AWB.FLT_DATE = OPR.SCH_DATE AND OFFLOAD_AWB.FLT_KEY=OPR.FLT_KEY) AS ofldton,
+          (SELECT CASE COUNT(OPR_EVNT.FLT_KEY) WHEN 0 THEN 'N' ELSE 'Y' END FROM FLT_OPR_EVENTS OPR_EVNT WHERE OPR_EVNT.SCH_DATE = OPR.SCH_DATE AND OPR_EVNT.FLT_KEY=OPR.FLT_KEY AND OFLD_CFM_IND='Y') AS ofldcomp
+            FROM FLT_OPR OPR 
+            WHERE OPR.FLT_TYPE='D'
+            and  TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'), TO_CHAR(COALESCE(COALESCE(OPR.ACT_TIME,OPR.SCH_TIME),0),'0000')),'DDMONYYHH24MI')  &gt;= TO_DATE(#fltDtFr#,'DDMONYYHH24MI') 
+			and  TO_DATE(CONCAT(TO_CHAR(OPR.SCH_DATE,'DDMONYY'), TO_CHAR(COALESCE(COALESCE(OPR.ACT_TIME,OPR.SCH_TIME),0),'0000')),'DDMONYYHH24MI')  &lt;= TO_DATE(#fltDtTo#,'DDMONYYHH24MI')            
+            <isNotEmpty property="module">
+            	AND (OPR.FLT_MODULE1=#module# OR OPR.FLT_MODULE2=#module#) 
+            </isNotEmpty>
+            <isNotEmpty property="acftType" >
+            	AND OPR.ACFT_TYPE=#acftType#
+            </isNotEmpty>
+            <isNotEmpty property="usage" >
+            	AND OPR.CGO_ACFT_TYPE=#usage#
+            </isNotEmpty>            
+           <isNotEmpty property="fltKey">
+		    	AND OPR.FLT_KEY=#fltKey#
+			</isNotEmpty>
+			<isEmpty property="fltKey">
+		    	<isNotEmpty property="loginCarrier">
+                 AND   (OPR.CARR_CODE = #loginCarrier#
+                 OR OPR.CARR_CODE IN (SELECT CARR_CODE FROM MAST_CARR_GRP 
+                 WHERE GRP_CARR_CODE     = #loginCarrier#))                                          
+            	</isNotEmpty>
+			</isEmpty>
+		ORDER BY schDate desc, std asc
+	</select>
+--><!-- Flight monitor end -->
+	<!-- Flight Movement start -->
+		<select id="fetchFltDetail" parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="cargo.cms.flight.bo.FlightBO">
+			select opr.FLT_TYPE as flightType,opr.FLT_KEY as flightKey ,opr.ORIG as fromLoc, 
+			<!--opr.DEST as toLoc,-->			
+			(select STRAGG(STRINGDELIM(off_point, '/'))  FROM (select off_point from FLT_OPR A
+              LEFT JOIN FLT_OPR_LEG b
+              ON A.flt_key   = b.flt_key
+              AND A.sch_date = b.sch_date
+              AND A.flt_type = b.flt_type
+              AND A.tr_no = b.tr_no 
+              WHERE A.FLT_KEY=#flightKey#
+              AND A.SCH_DATE = to_date(#schDate#,'DDMONYY')
+              AND A.FLT_TYPE = #flightType# order by leg_ord asc) s )  as toLoc,
+			to_char(opr.SCH_DATE,'DDMONYY') as schDate,
+			public.PKG_COMMON__GET_FLT_ATA(OPR.FLT_KEY,OPR.SCH_DATE,#flightType#) AS ata,
+			public.PKG_COMMON__get_flt_eta(OPR.FLT_KEY,OPR.SCH_DATE,#flightType#) AS eta,
+			to_char(opr.sch_time,'0000') as  schTimeHr,			
+			opr.TO_IND as toIndicator,CODE_WH.CODE_DESC as warehouselvl,
+			opr.CHKOUT_AREA as chkOutArea ,opr.ACFT_REG_NO as arcftRegionNo ,opr.ACFT_PRK_BAY as bay,opr.GROUND_HANDLER as cto,
+			opr.SCH_GATE as gate, 
+			opr.FLT_MODULE1 as fltModule1,opr.FLT_MODULE2 as fltModule2, 
+       		case count(ffm.flt_key) when 0 then 'N' else 'Y' end as ffmInd,
+			case  count(fwb.awb_no) when 0 then 'N' else 'Y' end as fwb,
+       		case count(OPR_EVENTS_DLS.flt_key) when 0 then 'N' else 'Y' end as dlsInd,
+			case count(FBL.flt_key) when 0 then 'N' else 'Y' end as fbl,
+			case count(FHL.FLT_CARR) when 0 then 'N' else 'Y' end as fhl,
+       		case count(OPR_EVENTS_OFLD.flt_key) when 0 then 'N' else 'Y' end as ofldFlag,
+       		case count(MLOG.flt_key) when 0 then 'N' else 'Y' end as obmmInd,
+			<!--  comp.CODE_DESC as rhoUser, -->
+			(select cc.CODE_DESC from CUST_COMPANY cc where cc.code = opr.RHO_ID
+limit 1) as rhoUser,			 
+			 code_dtl.CODE_DESC as cargoArcftType,
+			 case count(eep.tr_no) when 0 then 'N' else 'Y' end as fltAllotment		
+			from FLT_OPR opr
+			left outer  join EDI_FFM_MSG ffm on opr.flt_key=ffm.flt_key and opr.sch_date=ffm.flt_date 
+			 left outer join EDI_FFM_SHP FFM_SHP on FFM_SHP.TR_NO=ffm.TR_NO
+			left outer	join EDI_FWB fwb on FFM_SHP.AWB_NO=fwb.AWB_NO and FFM_SHP.AWB_DATE=fwb.AWB_DATE 
+			left outer join FLT_OPR_EVENTS OPR_EVENTS_DLS on opr.flt_key=OPR_EVENTS_DLS.flt_key and opr.sch_date=OPR_EVENTS_DLS.SCH_DATE and OPR_EVENTS_DLS.DLS_IND='Y'
+    		left outer join FLT_OPR_EVENTS OPR_EVENTS_OFLD on opr.flt_key=OPR_EVENTS_OFLD.flt_key and opr.sch_date=OPR_EVENTS_OFLD.SCH_DATE and OPR_EVENTS_OFLD.ofld_cfm_ind='Y'
+			--left outer join EDI_FBL FBL on opr.flt_key=FBL.flt_key and opr.sch_date=FBL.flt_date and row_number() over ()=1
+			LEFT OUTER JOIN (
+    SELECT flt_key, flt_date
+    FROM (
+        SELECT FBL.flt_key, FBL.flt_date,
+               ROW_NUMBER() OVER (PARTITION BY FBL.flt_key ORDER BY FBL.flt_date) AS rn
+        FROM EDI_FBL FBL
+    ) subquery
+    WHERE rn = 1
+) FBL ON opr.flt_key = FBL.flt_key
+    AND opr.sch_date = FBL.flt_date
+
+			left outer join EDI_FHL FHL on FHL.FLT_CARR=OPR.CARR_CODE and FHL.FLT_NO=OPR.FLT_NO and OPR.SCH_DATE=FHL.flt_date 
+			left outer join MESSAGE_LOG MLOG on MLOG.FLT_KEY=OPR.FLT_KEY and opr.sch_date=MLOG.FLT_DATE and MLOG.MSG_TYPE='OBM' 
+			left outer join cust_company comp on comp.carr_code=opr.carr_code and comp.carr_code=#carrCode#
+      		left outer join mast_code_dtl code_dtl on OPR.CGO_ACFT_TYPE=code_dtl.CODE and code_dtl.CODE_TYPE='CGO_ACFT_TYPE'
+      		LEFT OUTER JOIN MAST_CODE_DTL CODE_WH ON CODE_WH.CODE=opr.WH_LEVEL AND CODE_WH.CODE_TYPE='WH_LEVEL'
+      		left join edi_elp_msg eep on opr.flt_key=eep.flt_key and opr.sch_date=eep.flt_date 
+			where 
+			opr.CARR_CODE=#carrCode# and opr.FLT_NO=#flightNo#
+			
+			and to_char(opr.SCH_DATE,'DDMONYY')::date=to_date(#schDate#,'DDMONYY')
+			<isNotEqual property="flightType" compareValue="B"> 
+				and opr.FLT_TYPE=#flightType#
+			</isNotEqual>			
+			GROUP BY opr.FLT_TYPE, opr.FLT_KEY, opr.ORIG, opr.DEST, OPR.SCH_DATE,
+      		to_char(opr.SCH_DATE,'DDMONYY'), to_char(opr.sch_time,'0000'), opr.TO_IND, CODE_WH.CODE_DESC, opr.CHKOUT_AREA, opr.ACFT_REG_NO, opr.ACFT_PRK_BAY, opr.GROUND_HANDLER, opr.SCH_GATE, 
+      		opr.FLT_MODULE1, opr.FLT_MODULE2, comp.CODE_DESC, code_dtl.CODE_DESC,opr.TO_IND,opr.RHO_ID			
+		</select>
+		
+		<select id="fetchFltIndDetails" parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="cargo.cms.flight.bo.FlightBO">
+		SELECT
+			(case when (select count(1) from edi_msg_log_out where flt_key=#flightKey# and flt_date=to_date(#schDate#,'DDMONYY') and msg_type='FWB' ) > 0 then 'Y' else 'N' end) AS fwb,
+			(case when (select count(1) from edi_msg_log_out where flt_key=#flightKey# and flt_date=to_date(#schDate#,'DDMONYY') and msg_type='FFM' ) > 0 then 'Y' else 'N' end) AS ffmInd,
+			(case when (select count(1) from edi_msg_log_out where flt_key=#flightKey# and flt_date=to_date(#schDate#,'DDMONYY') and msg_type='FHL' ) > 0 then 'Y' else 'N' end) AS fhl
+		 
+ </select>
+		<select id="fltvalidate" parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.Integer">
+			SELECT COALESCE(count(1),0) FROM FLT_OPR WHERE 
+		
+			CARR_CODE = #carrCode# AND FLT_NO = #flightNo# 
+		
+		
+			AND SCH_DATE= TO_DATE( #schDate#, 'DDMONYY') 
+			<isNotEqual property="flightType" compareValue="B"> 
+				AND FLT_TYPE=#flightType#
+			</isNotEqual>				
+		</select>
+		
+		<select id="fetchFlightMovmentEvents" parameterClass="cargo.cms.flight.bo.FlightBO" resultClass="cargo.cms.flight.bo.FlightMovementBO">
+		   SELECT 
+	     		TO_CHAR( A.CR_DATE, 'DDMONYY HH24:MI:SS' ) AS crDate,
+	     		A.CR_USER_ID AS crUserId,
+	     		( select des_tag from his_mst_itm where cod_his_seq_num=b.cod_his_seq_num) AS eventId,
+	     		CASE B.cod_act WHEN 'A' THEN 'ADD' WHEN 'U' THEN 'UPD' WHEN 'D' THEN 'DEL' END as event,
+	     		B.DES_HIS_DTS as eventDesc
+	  		FROM HIS_FLT_EVNT A,HIS_FLT_EVNT_DTL B
+	  		WHERE B.FLT_KEY= A.FLT_KEY
+	  			AND B.FLT_DATE = A.FLT_DATE
+	        	AND B.FLT_TYPE = A.FLT_TYPE
+	       		AND A.COD_TRA_SEQ_NUM  = B.COD_TRA_SEQ_NUM
+	   			AND A.FLT_KEY = #flightNoKey#
+	    		AND A.FLT_DATE = TO_DATE(#schDate#,'DDMONYY')
+	        	<isEqual property="flightType" compareValue="D"> 
+				 AND A.FLT_TYPE in ('D','E','A','I')
+				</isEqual>
+	        	<isEqual property="flightType" compareValue="A"> 
+				--AND A.FLT_TYPE in ('A','I')
+				</isEqual>
+	        	AND A.MODULE = 'W'
+	        	AND A.COD_HIS_TYP = 'E'
+	    	group by a.FLT_KEY, a.FLT_DATE,A.CR_DATE,A.CR_USER_ID,A.COD_FUNC,B.cod_act,B.DES_HIS_DTS,b.cod_his_seq_num
+			order by A.CR_DATE			   		               
+		</select>
+		
+	<!-- Flight Movement end -->
+	<select id="getFltMonitorCutOffTime" parameterClass="java.lang.String" resultClass="java.lang.String">
+	 select rule_value from cmsrules where RULE_CODE=#param#
+	</select>
+	<select id="sqlFetchDefualtPAXFRTRValue" resultClass="java.util.HashMap">
+		SELECT 
+			(SELECT RULE_VALUE FROM CMSRULES WHERE RULE_CODE='AUTO_ASSGN_ULD_PAX') autoAsgnUld_PAX, 
+			(SELECT RULE_VALUE FROM CMSRULES WHERE RULE_CODE='AUTO_ASSGN_ULD_FRTR') autoAsgnUld_FRTR 
+		 
+ </select>
+	<select id="fetchHseBUConfig" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+		SELECT COUNT(1) FROM MAST_HSE_BU_CONFIG WHERE CARR_CODE=#carrCode# AND PORT=#port#
+	</select>
+	<select id="checkSchDepDateRecordExists"  parameterClass="cargo.cms.flight.bo.FlightLegBO"  resultClass="java.lang.Integer">
+		select count(1) from flt_opr_leg where flt_key=#flightKey# and flt_type=#flightType# and SCH_DEP_DATE=to_date(#schDepDate#,'DDMONYY') and BRD_POINT = #fromLoc#
+	</select>
+	<select id="checkSchArrDateRecordExists"  parameterClass="cargo.cms.flight.bo.FlightLegBO"  resultClass="java.lang.Integer">
+		select count(1) from flt_opr_leg where flt_key=#flightKey# and flt_type=#flightType# and SCH_ARR_DATE=to_date(#schArrDate#,'DDMONYY') and OFF_POINT = #toLoc# 
+	</select>
+	 <select id="expNotocdetails" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ExpMonitorBO">
+	 select COALESCE(f.notoc_ind,'N') as notocInd,f.notoc_ack_user as ackUser, TO_CHAR(f.notoc_ack_date,'DDMONYY HH24:MI') as ackDate ,coalesce(f.notoc_ack_ind,'N')  as ackInd,CASE F.CARR_CODE WHEN 'BR' THEN (SELECT RULE_VALUE FROM CMSRULES WHERE RULE_CODE='NOTOC_BR_REPT_ID'
+LIMIT 1) ELSE '' END reptId 
+	  from flt_opr_events f  where f.flt_type='D' and f.flt_key=#fltKey#  and f.sch_date=to_date(#schDate#,'DDMONYY') 
+	  </select>
+		<update id="expNotocUpdate" parameterClass="cargo.cms.flight.bo.ExpMonitorBO">
+		UPDATE	flt_opr_events  SET notoc_ack_user = #ackUser#  , notoc_ack_date=CURRENT_TIMESTAMP(0)  , notoc_ack_ind=#ackInd#,TR_TYPE='ACYN',LM_USER_ID = #ackUser#  WHERE	
+			 flt_type='D' and flt_key=#flightkey#  and sch_date=TO_DATE( #schDate#, 'DDMONYY') 
+	</update>
+	<update id="expNotocNULLUpdate" parameterClass="cargo.cms.flight.bo.ExpMonitorBO">
+		UPDATE	flt_opr_events  SET notoc_ack_user = ''  , notoc_ack_date=''  , notoc_ack_ind=#ackInd#,TR_TYPE='ACYN'  WHERE	
+			 flt_type='D' and flt_key=#flightkey#  and sch_date=TO_DATE( #schDate#, 'DDMONYY')
+	</update>
+	<select id="fetchNOTOCHDDetails" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ImpMonitorBO">
+			SELECT A.FLT_KEY AS fltKey,
+		  TO_CHAR(A.SCH_DATE,'DDMONYY') AS flightDate,
+		  A.DEST AS dest,
+		  A.ACFT_REG_NO AS acftRegNo,
+		  CASE B.CARR_CODE WHEN 'BR' THEN (SELECT RULE_VALUE FROM CMSRULES WHERE RULE_CODE='NOTOC_BR_REPT_ID') ELSE (SELECT RULE_VALUE FROM CMSRULES WHERE RULE_CODE='NOTOC_REPT_ID') END AS reptId,
+      	CASE B.BUILDUP_CUSER WHEN '' THEN 'N' ELSE 'Y' END AS bupComp,
+      	A.CARR_CODE AS carrCode
+		FROM FLT_OPR A
+    JOIN FLT_OPR_EVENTS B ON B.FLT_KEY = A.FLT_KEY AND B.SCH_DATE = A.SCH_DATE AND B.FLT_TYPE = A.FLT_TYPE 
+		WHERE A.FLT_KEY=#fltKey#
+		AND A.SCH_DATE =to_date(#flightDate#,'DDMONYY')
+		AND A.FLT_TYPE ='D'
+	</select>
+	<select id="getPmanPcWt_notoc"  parameterClass="cargo.cms.export.buildup.bo.AwbInfoBO"  resultClass="cargo.cms.export.buildup.bo.AwbInfoBO">
+	SELECT SUM(PMAN_PCS) AS pmanPcs,SUM(PMAN_WT) AS pmanWt FROM EXP_PMANIFEST_AWB WHERE FLT_KEY=#fltKey# AND FLT_DATE=to_date(#fltDate#,'DDMONYY') AND AWB_NO=#awbNo# AND AWB_DATE=to_date(#awbDate#,'DDMONYY')
+	</select>
+	<select id="getBupPcWt_notoc"  parameterClass="cargo.cms.export.buildup.bo.AwbInfoBO"  resultClass="cargo.cms.export.buildup.bo.AwbInfoBO">
+	SELECT SUM(ASSIGNED_PCS) AS bupPcs,SUM(ASSIGNED_WT) AS bupWt FROM EXP_PMANIFEST_ULD_AWB WHERE FLT_KEY=#fltKey# AND FLT_DATE=to_date(#fltDate#,'DDMONYY') AND AWB_NO=#awbNo# AND AWB_DATE=to_date(#awbDate#,'DDMONYY')
+	</select>
+<select id="getSpecialLoadShcs_flightnotoc" parameterClass="cargo.cms.export.buildup.bo.AwbInfoBO" resultClass="cargo.cms.export.buildup.bo.AwbInfoBO">
+	SELECT '2' as stat,#awbNo# AS awbNo,A.SPL_CODE AS splCode
+	FROM CUST_AIRL_SPL_CODE A,
+  	AWB B
+	WHERE 
+  ((A.CARR_CODE  = B.carr_code) OR (B.agent_code is not null and A.CUST_NO = B.AGENT_CODE))
+	AND A.spl_type     ='SPL_NOTOC'
+	AND B.AWB_NO       = #awbNo#
+	AND B.AWB_DATE  = to_date(#awbDate#,'DDMONYY')
+  UNION ALL 
+  SELECT  '1' as stat,#awbNo# AS awbNo,concat(case   when S.spl_code1 is null then  '' else Concat(S.spl_code1 , case   when S.spl_code2 is null then  '' else ',' end) end
+		, case   when S.spl_code2 is null then  '' else Concat(S.spl_code2 , case   when S.spl_code3 is null then  '' else ',' end) end
+		, case   when S.spl_code3 is null then  '' else Concat(S.spl_code3 , case   when S.spl_code4 is null then  '' else ',' end) end
+		, case   when S.spl_code4 is null then  '' else Concat(S.spl_code4 , case   when S.spl_code5 is null then  '' else ',' end) end
+		, case   when S.spl_code5 is null then  '' else Concat(S.spl_code5 , case   when S.spl_code6 is null then  '' else ',' end) end
+		, case   when S.spl_code6 is null then  '' else Concat(S.spl_code6 , case   when S.spl_code7 is null then  '' else ',' end) end
+		, case   when S.spl_code7 is null then  '' else Concat(S.spl_code7 , case   when S.spl_code8 is null then  '' else ',' end) end
+		  , case   when S.spl_code8 is null then  '' else Concat(S.spl_code8 , case   when S.spl_code9 is null then  '' else ',' end) end
+		, case   when S.spl_code9 is null then  '' else S.spl_code9 end) AS splCode 
+			FROM CUST_AIRL_COMB_SPL_CODE S,AWB P
+        WHERE ((S.CARR_CODE  =P.carr_code) OR (p.agent_code is not null and S.CUST_NO = P.AGENT_CODE))
+        AND S.spl_type     ='SPL_NOTOC'
+        AND P.AWB_NO       = #awbNo#
+        AND P.AWB_DATE  = to_date(#awbDate#,'DDMONYY')
+        ORDER BY STAT ASC
+	</select>
+	<select id="getNotoc_awbList" parameterClass="cargo.cms.flight.bo.ImpMonitorBO"  resultClass="cargo.cms.flight.bo.ImpMonitorBO">
+		SELECT PMAN.AWB_NO AS awbNo,
+  TO_CHAR(PMAN.AWB_DATE,'DDMONYY') AS awbDate,
+  CONCAT(CASE   WHEN AW.spl_code1 IS NULL THEN  '' ELSE CONCAT(AW.spl_code1
+  , CASE   WHEN AW.spl_code2 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code2 IS NULL THEN  '' ELSE CONCAT(AW.spl_code2
+  , CASE   WHEN AW.spl_code3 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code3 IS NULL THEN  '' ELSE CONCAT(AW.spl_code3
+  , CASE   WHEN AW.spl_code4 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code4 IS NULL THEN  '' ELSE CONCAT(AW.spl_code4
+  , CASE   WHEN AW.spl_code5 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code5 IS NULL THEN  '' ELSE CONCAT(AW.spl_code5
+  , CASE   WHEN AW.spl_code6 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code6 IS NULL THEN  '' ELSE CONCAT(AW.spl_code6
+  , CASE   WHEN AW.spl_code7 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code7 IS NULL THEN  '' ELSE CONCAT(AW.spl_code7
+  , CASE   WHEN AW.spl_code8 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code8 IS NULL THEN  '' ELSE CONCAT(AW.spl_code8
+  , CASE   WHEN AW.spl_code9 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code9 IS NULL THEN  '' ELSE AW.spl_code9 END) AS splCode,
+  AW.CONTENT AS content,
+  BUA.ASSIGNED_PCS AS bupPcs,
+  BUA.ASSIGNED_WT AS bupWt,
+  BUA.ULD_BT_NO AS bupULD,
+  PMAN.UNLDG_PT AS ldgPt
+FROM EXP_PMANIFEST_AWB PMAN
+JOIN EXP_PMANIFEST_ULD_AWB BUA ON BUA.FLT_KEY = PMAN.FLT_KEY AND BUA.FLT_DATE = PMAN.FLT_DATE AND BUA.UNLDG_PT = PMAN.UNLDG_PT AND BUA.AWB_NO = PMAN.AWB_NO AND BUA.AWB_DATE = PMAN.AWB_DATE AND BUA.NOTOC_IND = 'Y'  
+LEFT JOIN AWB AW ON AW.AWB_NO = PMAN.AWB_NO AND AW.AWB_DATE = PMAN.AWB_DATE
+WHERE PMAN.FLT_KEY=#fltKey#
+AND PMAN.FLT_DATE =to_date(#flightDate#,'DDMONYY')
+AND PMAN.NOTOC_IND = 'Y'
+UNION
+SELECT PMAN.AWB_NO AS awbNo,
+  TO_CHAR(PMAN.AWB_DATE,'DDMONYY') AS awbDate,
+  CONCAT(CASE   WHEN AW.spl_code1 IS NULL THEN  '' ELSE CONCAT(AW.spl_code1
+  , CASE   WHEN AW.spl_code2 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code2 IS NULL THEN  '' ELSE CONCAT(AW.spl_code2
+  , CASE   WHEN AW.spl_code3 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code3 IS NULL THEN  '' ELSE CONCAT(AW.spl_code3
+  , CASE   WHEN AW.spl_code4 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code4 IS NULL THEN  '' ELSE CONCAT(AW.spl_code4
+  , CASE   WHEN AW.spl_code5 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code5 IS NULL THEN  '' ELSE CONCAT(AW.spl_code5
+  , CASE   WHEN AW.spl_code6 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code6 IS NULL THEN  '' ELSE CONCAT(AW.spl_code6
+  , CASE   WHEN AW.spl_code7 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code7 IS NULL THEN  '' ELSE CONCAT(AW.spl_code7
+  , CASE   WHEN AW.spl_code8 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code8 IS NULL THEN  '' ELSE CONCAT(AW.spl_code8
+  , CASE   WHEN AW.spl_code9 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code9 IS NULL THEN  '' ELSE AW.spl_code9 END) AS splCode,
+  AW.CONTENT AS content,
+  BUA.ASSIGNED_PCS AS bupPcs,
+  BUA.ASSIGNED_WT AS bupWt,
+  BUA.ULD_BT_NO AS bupULD,
+  PMAN.UNLDG_PT AS ldgPt
+FROM EXP_PMAN_TARMAC_AWB PMAN
+JOIN EXP_PMAN_TARMAC_ULD_AWB BUA ON BUA.FLT_KEY = PMAN.FLT_KEY AND BUA.FLT_DATE = PMAN.FLT_DATE AND BUA.UNLDG_PT = PMAN.UNLDG_PT AND BUA.AWB_NO = PMAN.AWB_NO AND BUA.AWB_DATE = PMAN.AWB_DATE
+LEFT JOIN AWB AW ON AW.AWB_NO = PMAN.AWB_NO AND AW.AWB_DATE = PMAN.AWB_DATE
+WHERE PMAN.FLT_KEY=#fltKey#
+AND PMAN.FLT_DATE =to_date(#flightDate#,'DDMONYY')
+AND PMAN.NOTOC_IND = 'Y'
+AND NOT EXISTS (SELECT NULL FROM EXP_PMANIFEST_AWB D WHERE D.FLT_KEY = PMAN.FLT_KEY AND D.FLT_DATE=PMAN.FLT_DATE AND D.AWB_NO=PMAN.AWB_NO AND D.AWB_DATE=PMAN.AWB_DATE)
+UNION
+SELECT PMAN.AWB_NO AS awbNo,
+  TO_CHAR(PMAN.AWB_DATE,'DDMONYY') AS awbDate,
+  CONCAT(CASE   WHEN AW.spl_code1 IS NULL THEN  '' ELSE CONCAT(AW.spl_code1
+  , CASE   WHEN AW.spl_code2 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code2 IS NULL THEN  '' ELSE CONCAT(AW.spl_code2
+  , CASE   WHEN AW.spl_code3 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code3 IS NULL THEN  '' ELSE CONCAT(AW.spl_code3
+  , CASE   WHEN AW.spl_code4 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code4 IS NULL THEN  '' ELSE CONCAT(AW.spl_code4
+  , CASE   WHEN AW.spl_code5 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code5 IS NULL THEN  '' ELSE CONCAT(AW.spl_code5
+  , CASE   WHEN AW.spl_code6 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code6 IS NULL THEN  '' ELSE CONCAT(AW.spl_code6
+  , CASE   WHEN AW.spl_code7 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code7 IS NULL THEN  '' ELSE CONCAT(AW.spl_code7
+  , CASE   WHEN AW.spl_code8 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code8 IS NULL THEN  '' ELSE CONCAT(AW.spl_code8
+  , CASE   WHEN AW.spl_code9 IS NULL THEN  '' ELSE '/' END) END
+  , CASE   WHEN AW.spl_code9 IS NULL THEN  '' ELSE AW.spl_code9 END) AS splCode,
+  AW.CONTENT AS content,
+  PMAN.BULK_PCS AS bupPcs,
+  PMAN.BULK_WT AS bupWt,
+  'TARMAC BULK' AS bupULD,
+  PMAN.UNLDG_PT AS ldgPt
+FROM EXP_PMAN_TARMAC_AWB PMAN
+LEFT JOIN AWB AW ON AW.AWB_NO = PMAN.AWB_NO AND AW.AWB_DATE = PMAN.AWB_DATE
+WHERE PMAN.FLT_KEY=#fltKey#
+AND PMAN.FLT_DATE =to_date(#flightDate#,'DDMONYY')
+AND PMAN.NOTOC_IND = 'Y'
+AND NOT EXISTS (SELECT NULL FROM EXP_PMANIFEST_AWB D WHERE D.FLT_KEY = PMAN.FLT_KEY AND D.FLT_DATE=PMAN.FLT_DATE AND D.AWB_NO=PMAN.AWB_NO AND D.AWB_DATE=PMAN.AWB_DATE)
+AND NOT EXISTS (SELECT NULL FROM EXP_PMAN_TARMAC_ULD_AWB E WHERE E.FLT_KEY = PMAN.FLT_KEY AND E.FLT_DATE=PMAN.FLT_DATE AND E.AWB_NO=PMAN.AWB_NO AND E.AWB_DATE=PMAN.AWB_DATE)
+</select>
+
+<select id="get_notoc_premanifset_dtl" parameterClass="cargo.cms.flight.bo.ImpMonitorBO" resultClass="cargo.cms.flight.bo.ImpMonitorBO">
+    	select sum(pman_pcs) as pmanPcs,sum(pman_wt) as pmanWt from exp_pmanifest_awb where 
+    	flt_key = #fltKey# and flt_date = to_date(#flightDate#,'DDMONYY')
+    </select>	
+ <select id="get_notoc_uld_buildup_dtl" parameterClass="cargo.cms.flight.bo.ImpMonitorBO" resultClass="cargo.cms.flight.bo.ImpMonitorBO">
+    	select sum(b.assigned_pcs) as buPcs,sum(b.assigned_wt) as buWt from exp_pmanifest_uld a
+		join exp_pmanifest_uld_awb b
+		on a.uld_bt_no = b.uld_bt_no and a.flt_key= b.flt_key and a.flt_date= b.flt_date
+		where a.flt_key=#fltKey#
+		and a.flt_date = to_date(#flightDate#,'DDMONYY')		
+    </select>
+	
+<select id="fetchCarriergroupForAjax" parameterClass="java.util.HashMap" resultClass="java.util.HashMap">
+     
+SELECT a.GRP_CARR_CODE as strCarrGroup FROM MAST_CARR_GRP a,MAST_CARRIER b where b.CODE=a.GRP_CARR_CODE and b.handled_by_terminal='CPCT' AND b.owned_carr='Y'  and a.GRP_CARR_CODE     like (Concat('%',#keySearchStr# ,'%'))  and ROWNUM &lt;= #maxRecFetch# group by a.GRP_CARR_CODE, a.GRP_CARR_CODE
+      
+</select>
+<select id="fetchcarrier" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+select count(1) from MAST_CARR_GRP where grp_carr_code=#grpcarr# and carr_code=#fltcarr#
+</select>
+<select id="fetchexistingATD" parameterClass="java.util.HashMap" resultClass="java.lang.String">
+	SELECT CONCAT(TO_CHAR(ACT_DATE, 'DDMONYY'), ' ', LPAD(CAST(act_time AS TEXT), 4, '0')) AS actTime FROM FLT_OPR WHERE FLT_KEY=#fltKey# AND SCH_DATE= to_date(#fltDate#,'DDMONYY') AND flt_type=#flightType# 
+</select>
+<select id="checkFlightisalreadyclosed" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+SELECT COUNT(1) FROM FLT_OPR_EVENTS WHERE FLT_KEY=#fltKey# AND SCH_DATE=to_date(#fltDate#,'DDMONYY') AND flt_cls_yn='Y' AND flt_type=#flightType# AND flt_cls_date IS NOT NULL AND FLT_CLS_TIME IS NOT NULL
+</select>
+<select id="checkFlightDateDiff" parameterClass="java.util.HashMap" resultClass="java.lang.Integer">
+	 SELECT CASE WHEN EXTRACT(DAY FROM (TO_TIMESTAMP(#oldActDate#, 'DDMONYY HH24MI') - TO_TIMESTAMP(#newActDate#, 'DDMONYY HH24MI'))) != 0  THEN 1   ELSE 0  END AS DAYDIFF
+ </select>
+<update id="updateFLTClosEAmendFlt" parameterClass="java.util.HashMap">
+	UPDATE FLT_OPR_EVENTS SET FLT_CLS_YN='Y', FLT_CLS_DATE = CURRENT_TIMESTAMP(0), FLT_CLS_TIME = TO_CHAR(CURRENT_TIMESTAMP(0),'HH24MI'), FLT_CLS_USER_ID = 'SYSTEM',LM_USER_ID= 'SYSTEM',LM_DATE = CURRENT_TIMESTAMP(0),TR_TYPE='CLFLT' WHERE FLT_KEY=#fltKey# AND SCH_DATE =to_date(#fltDate#,'DDMONYY') AND FLT_TYPE=#flightType#
+</update>
+
+
+        <select id="sqlChkIncompFbl" parameterClass="cargo.cms.flight.bo.FlightBO" resultClass="java.lang.Integer">
+		select count(1) from edi_fbl where flt_key=#flightKey# and flt_date=to_date(#schDate#,'DDMONYY') and fbl_status='CONT'
+	</select>
+	
+	<update id="sqlRmvIncompFbl" parameterClass="cargo.cms.flight.bo.FlightBO">
+		UPDATE edi_fbl set fbl_status='UNPRO',lm_date=CURRENT_TIMESTAMP(0),lm_user_id=#userId# where flt_key=#flightKey# and flt_date=to_date(#schDate#,'DDMONYY') AND fbl_status='CONT'
+	</update>
+
+<select id="checkVesselFlights"  parameterClass="java.lang.String"  resultClass="java.lang.Integer">
+		SELECT COUNT(*) as vesselFlight FROM MAST_CARRIER where CODE = #flightCarr# and coalesce(VESSEL_FLT_YN,'N') = 'Y'
+	</select>
+
+<select id="getSTFSFlightInfo"  parameterClass="java.util.HashMap"  resultClass="java.util.HashMap">
+		SELECT stfs_flt_key AS STFS_KEY, TO_CHAR(stfs_flt_date,'DDMONYY') AS STFS_DATE
+			FROM FLT_OPR where flt_key= #FLT_KEY# AND sch_date = to_date(#FLT_DATE#,'DDMONYY') AND flt_type = #FLT_TYPE# and stfs_flt_key is not null
+	</select>
+
+<select id="checkflightCarr"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.String">
+		SELECT COUNT(*) FROM MAST_CARR_GRP WHERE GRP_CARR_CODE= #flightCarr#	
+   	</select>
+
+	<select id="checkCarrandGrpCar"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.String">
+		SELECT COUNT(*) FROM MAST_CARR_GRP WHERE GRP_CARR_CODE= #flightCarr# AND CARR_CODE= #chiledCar#	
+   	</select>
+
+
+	<select id="schcheckflightCarr"  parameterClass="cargo.cms.flight.bo.ScheduleBO"  resultClass="java.lang.String">
+		SELECT COUNT(*) FROM MAST_CARR_GRP WHERE GRP_CARR_CODE= #flightCarr#	
+   	</select>
+
+	<select id="schcheckCarrandGrpCar"  parameterClass="cargo.cms.flight.bo.ScheduleBO"  resultClass="java.lang.String">
+		SELECT COUNT(*) FROM MAST_CARR_GRP WHERE GRP_CARR_CODE= #flightCarr# AND CARR_CODE= #chiledCar#	
+   	</select>
+
+	<delete id="deleteAirlineflight" parameterClass="cargo.cms.flight.bo.FlightBO">	
+		DELETE FROM FLT_OPR_AIRLINE WHERE TR_NO = #txnNo# and CARR_CODE= #flightCarr# and FLT_KEY= #flightNoKey#	
+	</delete>
+	<delete id="deleteschAirlineflight" parameterClass="cargo.cms.flight.bo.ScheduleBO">	
+		DELETE FROM FLT_SCH_AIRLINE WHERE TR_NO = #trno# and CARR_CODE= #flightCarr# and FLT_KEY= #flightKey#	
+	</delete>
+	
+	<select id="exitflightKeydate"  parameterClass="cargo.cms.flight.bo.FlightBO"  resultClass="java.lang.String">
+		SELECT count(*) as dummyAirlineCnt FROM FLT_OPR opr, FLT_OPR_AIRLINE air
+            WHERE FLT_TYPE = #flightType# AND opr.tr_no = air.tr_no
+            AND air.flt_key = #flightNoKey# AND SCH_DATE= TO_DATE(#schDate#,'DDMONYY')	
+   	</select>
+   	
+   	
+	<select id="getFltcarrforOtherConst" parameterClass="java.util.HashMap" resultClass="java.util.HashMap" >
+	SELECT CARR_CODE AS CARR_CODE,FLT_TYPE AS FLT_TYPE FROM FLT_OPR WHERE FLT_KEY=#FLTKEY# AND SCH_DATE=to_date(#FLTDATE#,'DDMONYY')
+	</select>
+	
+</sqlMap>
