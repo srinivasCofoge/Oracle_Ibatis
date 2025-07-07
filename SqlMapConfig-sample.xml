@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMapConfig PUBLIC "-//ibatis.apache.org//DTD SQL Map Config 2.0//EN" 
+    "http://ibatis.apache.org/dtd/sql-map-config-2.dtd">
+
+<!-- 
+    Sample iBATIS Configuration showing how to integrate the HawbDataTypeHandler
+    
+    This configuration demonstrates:
+    1. TypeHandler registration for HawbData to PostgreSQL STRUCT conversion
+    2. DataSource configuration for PostgreSQL
+    3. SQL Map inclusion with custom TypeHandler
+    
+    Usage: Integrate these elements into your existing iBATIS configuration
+-->
+<sqlMapConfig>
+    
+    <!-- Settings for better performance and debugging -->
+    <settings 
+        cacheModelsEnabled="true"
+        enhancementEnabled="false"
+        lazyLoadingEnabled="false"
+        maxRequests="32"
+        maxSessions="10"
+        maxTransactions="5"
+        useStatementNamespaces="true"/>
+    
+    <!-- 
+        TypeHandler Registration
+        Register the custom HawbDataTypeHandler for PostgreSQL STRUCT conversion
+    -->
+    <typeHandler 
+        javaType="cargo.cms.edi.ei.bo.HawbData" 
+        jdbcType="STRUCT" 
+        callback="cargo.cms.edi.ei.typehandler.HawbDataTypeHandler"/>
+    
+    <!-- 
+        DataSource Configuration for PostgreSQL
+        Configure your PostgreSQL database connection
+    -->
+    <transactionManager type="JDBC">
+        <dataSource type="POOLED">
+            <!-- PostgreSQL JDBC Driver -->
+            <property name="driver" value="org.postgresql.Driver"/>
+            
+            <!-- Database Connection URL -->
+            <property name="url" value="jdbc:postgresql://localhost:5432/your_database_name"/>
+            
+            <!-- Database Credentials -->
+            <property name="username" value="your_username"/>
+            <property name="password" value="your_password"/>
+            
+            <!-- Connection Pool Configuration -->
+            <property name="poolMaximumActiveConnections" value="20"/>
+            <property name="poolMaximumIdleConnections" value="5"/>
+            <property name="poolMaximumCheckoutTime" value="20000"/>
+            <property name="poolTimeToWait" value="20000"/>
+            <property name="poolPingQuery" value="SELECT 1"/>
+            <property name="poolPingEnabled" value="true"/>
+            <property name="poolPingConnectionsNotUsedFor" value="19000"/>
+            
+            <!-- PostgreSQL specific properties -->
+            <property name="connectionProperties" value="useUnicode=true;characterEncoding=UTF-8"/>
+        </dataSource>
+    </transactionManager>
+    
+    <!-- 
+        SQL Map Files
+        Include your SQL map files that use the custom TypeHandler
+    -->
+    
+    <!-- Include the HAWB data SQL map with custom TypeHandler -->
+    <sqlMap resource="sqlmaphawbdata.xml"/>
+    
+    <!-- Include your existing SQL maps -->
+    <sqlMap resource="sqlqueryflight.xml"/>
+    <sqlMap resource="sqlqueryimport.xml"/>
+    <sqlMap resource="sqlqueryimport_part1.xml"/>
+    <sqlMap resource="sqlqueryimport_part2.xml"/>
+    <sqlMap resource="sqlqueryimport_part3.xml"/>
+    <sqlMap resource="sqlqueryimport_part4.xml"/>
+    
+</sqlMapConfig>
