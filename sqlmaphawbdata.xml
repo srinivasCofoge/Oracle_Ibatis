@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<!-- 
+    iBATIS SQL Map Configuration for HAWB Data Processing with Custom TypeHandler
+    
+    This configuration includes:
+    - Custom TypeHandler registration for HawbData to PostgreSQL STRUCT conversion
+    - Parameter mapping for the wosint.PKG_FHL__FUN_INS_HAWB procedure
+    - Proper handling of null values and error management
+-->
+<sqlMap namespace="HawbDataModule">
+
+    <!-- 
+        TypeHandler Aliases for better readability and maintainability
+        Register the custom HawbDataTypeHandler for PostgreSQL STRUCT conversion
+    -->
+    <typeHandler javaType="cargo.cms.edi.ei.bo.HawbData" 
+                 jdbcType="STRUCT" 
+                 callback="cargo.cms.edi.ei.typehandler.HawbDataTypeHandler"/>
+
+    <!-- 
+        Parameter Map for HAWB Insert Procedure
+        Maps Java objects to PostgreSQL procedure parameters including the custom STRUCT type
+        
+        This is the exact configuration specified in the problem statement with the custom TypeHandler
+    -->
+    <parameterMap id="ediAimsFhlHAwbInsertParMap" class="map">
+        <!-- HawbData object mapped to PostgreSQL t_hawb_ins STRUCT using custom TypeHandler -->
+        <parameter property="hawbData" 
+                   jdbcType="STRUCT" 
+                   javaType="cargo.cms.edi.ei.bo.HawbData" 
+                   mode="IN"
+                   typeHandler="cargo.cms.edi.ei.typehandler.HawbDataTypeHandler"/>
+        
+        <!-- Standard parameters for flight and transmission information -->
+        <parameter property="fltCarr" jdbcType="VARCHAR" mode="IN"/>
+        <parameter property="fltNo" jdbcType="VARCHAR" mode="IN"/>
+        <parameter property="fltDate" jdbcType="VARCHAR" mode="IN"/>
+        <parameter property="transmissionDate" jdbcType="VARCHAR" mode="IN"/>
+        <parameter property="transmissionTime" jdbcType="NUMERIC" mode="IN"/>
+        
+        <!-- Output parameters for error handling and response -->
+        <parameter property="errorMsg" jdbcType="VARCHAR" mode="OUT"/>
+        <parameter property="docLineNo" jdbcType="VARCHAR" javaType="java.lang.String" mode="OUT"/>
+    </parameterMap>
+
+    <!-- 
+        Procedure call for HAWB data insertion
+        Calls the PostgreSQL function wosint.PKG_FHL__FUN_INS_HAWB with proper parameter mapping
+    -->
+    <procedure id="ediAimsFhlHAwbInsert" parameterMap="ediAimsFhlHAwbInsertParMap">
+        {call wosint.PKG_FHL__FUN_INS_HAWB(?,?,?,?,?,?,?,?)}
+    </procedure>
+
+    <!-- 
+        Alternative procedure configuration with explicit null handling
+        Provides better error handling and null value management
+    -->
+    <procedure id="ediAimsFhlHAwbInsertWithErrorHandling" parameterMap="ediAimsFhlHAwbInsertParMap">
+        <![CDATA[
+            {call wosint.PKG_FHL__FUN_INS_HAWB(?,?,?,?,?,?,?,?)}
+        ]]>
+    </procedure>
+
+    <!-- 
+        Example parameterMap for testing with hardcoded values
+        Useful for unit testing and validation
+    -->
+    <parameterMap id="ediAimsFhlHAwbTestParMap" class="map">
+        <parameter property="hawbData" 
+                   jdbcType="STRUCT" 
+                   javaType="cargo.cms.edi.ei.bo.HawbData" 
+                   mode="IN"
+                   typeHandler="cargo.cms.edi.ei.typehandler.HawbDataTypeHandler"
+                   nullValue="NULL"/>
+        <parameter property="fltCarr" jdbcType="VARCHAR" mode="IN" nullValue=""/>
+        <parameter property="fltNo" jdbcType="VARCHAR" mode="IN" nullValue=""/>
+        <parameter property="fltDate" jdbcType="VARCHAR" mode="IN" nullValue=""/>
+        <parameter property="transmissionDate" jdbcType="VARCHAR" mode="IN" nullValue=""/>
+        <parameter property="transmissionTime" jdbcType="NUMERIC" mode="IN" nullValue="0"/>
+        <parameter property="errorMsg" jdbcType="VARCHAR" mode="OUT"/>
+        <parameter property="docLineNo" jdbcType="VARCHAR" javaType="java.lang.String" mode="OUT"/>
+    </parameterMap>
+
+    <!-- 
+        Test procedure call with enhanced error handling
+    -->
+    <procedure id="ediAimsFhlHAwbTestInsert" parameterMap="ediAimsFhlHAwbTestParMap">
+        {call wosint.PKG_FHL__FUN_INS_HAWB(?,?,?,?,?,?,?,?)}
+    </procedure>
+
+    <!-- 
+        Validation query to check if HAWB data can be processed
+        Useful for pre-validation before calling the main procedure
+    -->
+    <select id="validateHawbDataForInsert" parameterClass="cargo.cms.edi.ei.bo.HawbData" resultClass="java.lang.Integer">
+        <![CDATA[
+            SELECT CASE 
+                WHEN #hawbNo# IS NOT NULL 
+                AND #hawbDate# IS NOT NULL 
+                AND #origin# IS NOT NULL 
+                AND #destination# IS NOT NULL 
+                AND #pieces# > 0 
+                AND #weight# > 0 
+                THEN 1 
+                ELSE 0 
+            END AS isValid
+        ]]>
+    </select>
+
+    <!-- 
+        Query to retrieve the PostgreSQL STRUCT type definition
+        Useful for debugging and validation
+    -->
+    <select id="getStructTypeDefinition" parameterClass="map" resultClass="map">
+        <![CDATA[
+            SELECT 
+                a.attname AS column_name,
+                format_type(a.atttypid, a.atttypmod) AS data_type,
+                a.attnum AS ordinal_position
+            FROM 
+                pg_attribute a
+                JOIN pg_type t ON a.attrelid = t.typrelid
+            WHERE 
+                t.typname = 't_hawb_ins'
+                AND a.attnum > 0
+                AND NOT a.attisdropped
+            ORDER BY 
+                a.attnum
+        ]]>
+    </select>
+
+</sqlMap>
